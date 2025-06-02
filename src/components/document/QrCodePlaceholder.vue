@@ -24,7 +24,7 @@ const generateQrCode = async () => {
   try {
     qrCodeUrl.value = await QRCode.toDataURL('https://seal.codes', {
       width: 200,
-      margin: 1,
+      margin: 0,
       color: {
         dark: '#000000',
         light: '#FFFFFF'
@@ -106,28 +106,30 @@ const providerIcon = computed(() => {
         width: `${sizeInPixels}px`,
         height: `${sizeInPixels}px`,
       }"
-      class="relative bg-white rounded-xl shadow-lg p-4"
+      class="relative bg-white rounded-lg shadow-lg"
     >
-      <!-- QR Code -->
-      <img 
-        v-if="qrCodeUrl" 
-        :src="qrCodeUrl" 
-        alt="QR Code"
-        class="w-full h-full"
-      />
+      <!-- QR Code with padding -->
+      <div class="p-[10px] pb-[40px]">
+        <img 
+          v-if="qrCodeUrl" 
+          :src="qrCodeUrl" 
+          alt="QR Code"
+          class="w-full h-full"
+        />
+      </div>
       
       <!-- Auth Info -->
       <div 
         v-if="authProvider && userName"
-        class="absolute -bottom-2 -right-2 bg-white rounded-full shadow-lg p-2 flex items-center gap-2"
+        class="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-white rounded-full shadow px-3 py-1 flex items-center gap-2"
       >
         <img 
           v-if="providerIcon"
           :src="providerIcon" 
           :alt="authProvider"
-          class="w-6 h-6 object-contain"
+          class="w-4 h-4 object-contain"
         />
-        <span class="text-sm font-medium">{{ userName }}</span>
+        <span class="text-xs font-medium">{{ userName }}</span>
       </div>
     </div>
     
