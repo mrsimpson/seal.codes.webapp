@@ -107,10 +107,15 @@ const sizeInPixels = computed(() => {
         />
       </div>
       
-      <!-- Auth Identity Placeholder -->
-      <div class="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-gray-100 rounded-full px-3 py-1 flex items-center gap-2">
-        <div class="w-4 h-4 bg-gray-300 rounded-full"></div>
-        <div class="w-16 h-3 bg-gray-300 rounded"></div>
+      <!-- Two-line Auth Identity Placeholder -->
+      <div class="absolute bottom-2 left-0 right-0 px-2">
+        <div class="flex items-center justify-center gap-2 mb-1">
+          <div class="w-4 h-4 bg-gray-300 rounded-full"></div>
+          <div class="w-16 h-3 bg-gray-300 rounded"></div>
+        </div>
+        <div class="flex justify-center">
+          <div class="w-24 h-2 bg-gray-200 rounded"></div>
+        </div>
       </div>
     </div>
     
