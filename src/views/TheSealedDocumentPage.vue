@@ -32,6 +32,13 @@ const downloadDocument = () => {
 const goBack = () => {
   router.push('/document');
 };
+
+const sealInfo = [
+  'A unique document identifier',
+  'Timestamp of sealing',
+  'Your authentication information (hashed for privacy)',
+  'A verification URL that can be accessed by scanning the QR code with any QR code reader'
+];
 </script>
 
 <template>
@@ -84,25 +91,20 @@ const goBack = () => {
         <!-- Sidebar -->
         <div class="md:col-span-1">
           <div class="bg-white rounded-xl shadow-sm p-6">
-            <h3 class="text-lg font-medium mb-4">What's in Your Seal?</h3>
-            <ul class="space-y-2">
-              <li class="flex items-center">
-                <span class="w-2 h-2 bg-primary-500 rounded-full mr-2"></span>
-                A unique document identifier
-              </li>
-              <li class="flex items-center">
-                <span class="w-2 h-2 bg-primary-500 rounded-full mr-2"></span>
-                Timestamp of sealing
-              </li>
-              <li class="flex items-center">
-                <span class="w-2 h-2 bg-primary-500 rounded-full mr-2"></span>
-                Your authentication information (hashed for privacy)
-              </li>
-              <li class="flex items-center">
-                <span class="w-2 h-2 bg-primary-500 rounded-full mr-2"></span>
-                A verification URL that can be accessed by scanning the QR code with any QR code reader
-              </li>
-            </ul>
+            <h2 class="text-xl font-bold mb-6">What's in Your Seal?</h2>
+            
+            <div class="space-y-4">
+              <div 
+                v-for="(info, index) in sealInfo" 
+                :key="index"
+                class="flex items-start gap-3"
+              >
+                <div class="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-medium">
+                  {{ index + 1 }}
+                </div>
+                <p class="text-gray-700">{{ info }}</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
