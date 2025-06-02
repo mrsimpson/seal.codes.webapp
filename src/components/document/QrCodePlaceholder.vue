@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import QRCode from 'qrcode';
 
 const props = defineProps<{
   position: { x: number; y: number };
   containerWidth: number;
   containerHeight: number;
+  authProvider?: string;
+  userName?: string;
 }>();
 
 const emit = defineEmits<{
@@ -14,6 +17,25 @@ const emit = defineEmits<{
 
 const isDragging = ref(false);
 const size = ref(20); // Default 20% of container width
+const qrCodeUrl = ref('');
+
+// Generate QR code
+const generateQrCode = async () => {
+  try {
+    qrCodeUrl.value = await QRCode.toDataURL('https://seal.codes', {
+      width: 200,
+      margin: 1,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      }
+    });
+  } catch (err) {
+    console.error('Error generating QR code:', err);
+  }
+};
+
+generateQrCode();
 
 const startDragging = () => {
   isDragging.value = true;
@@ -55,6 +77,17 @@ const sizeInPixels = computed(() => {
   const minDimension = Math.min(props.containerWidth, props.containerHeight);
   return (minDimension * size.value) / 100;
 });
+
+// Get provider icon URL
+const providerIcon = computed(() => {
+  const icons = {
+    google: 'https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png',
+    github: 'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png',
+    microsoft: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Microsoft_logo.svg/1024px-Microsoft_logo.svg.png',
+    apple: 'https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg'
+  };
+  return props.authProvider ? icons[props.authProvider as keyof typeof icons] : null;
+});
 </script>
 
 <template>
@@ -67,24 +100,35 @@ const sizeInPixels = computed(() => {
     }"
     @mousedown="startDragging"
   >
-    <!-- QR Code Placeholder -->
+    <!-- QR Code Container -->
     <div 
       :style="{
         width: `${sizeInPixels}px`,
         height: `${sizeInPixels}px`,
       }"
-      class="relative bg-white border-2 border-black rounded-lg grid grid-cols-3 grid-rows-3 gap-1 p-1"
+      class="relative bg-white rounded-xl shadow-lg p-4"
     >
-      <!-- QR Code Pattern -->
-      <div class="bg-black rounded"></div>
-      <div></div>
-      <div class="bg-black rounded"></div>
-      <div></div>
-      <div class="bg-black rounded"></div>
-      <div></div>
-      <div class="bg-black rounded"></div>
-      <div></div>
-      <div class="bg-black rounded"></div>
+      <!-- QR Code -->
+      <img 
+        v-if="qrCodeUrl" 
+        :src="qrCodeUrl" 
+        alt="QR Code"
+        class="w-full h-full"
+      />
+      
+      <!-- Auth Info -->
+      <div 
+        v-if="authProvider && userName"
+        class="absolute -bottom-2 -right-2 bg-white rounded-full shadow-lg p-2 flex items-center gap-2"
+      >
+        <img 
+          v-if="providerIcon"
+          :src="providerIcon" 
+          :alt="authProvider"
+          class="w-6 h-6 object-contain"
+        />
+        <span class="text-sm font-medium">{{ userName }}</span>
+      </div>
     </div>
     
     <!-- Size Controls -->
