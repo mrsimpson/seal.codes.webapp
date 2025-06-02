@@ -75,14 +75,10 @@ const handleDrag = (e: MouseEvent) => {
   const x = ((e.clientX - dragOffset.value.x - rect.left) / rect.width) * 100;
   const y = ((e.clientY - dragOffset.value.y - rect.top) / rect.height) * 100;
   
-  // Calculate QR code dimensions including the auth identity section
-  const qrHeight = sizeInPixels.value + 80; // Add height for auth identity section
-  const halfHeightPercent = (qrHeight / rect.height) * 50;
-  const halfWidthPercent = (size.value / 2);
-  
-  // Keep QR code within bounds considering its full height
-  const boundedX = Math.max(halfWidthPercent, Math.min(100 - halfWidthPercent, x));
-  const boundedY = Math.max(halfHeightPercent, Math.min(100 - halfHeightPercent, y));
+  // Keep QR code within bounds considering its size
+  const halfSizePercent = (size.value / 2);
+  const boundedX = Math.max(halfSizePercent, Math.min(100 - halfSizePercent, x));
+  const boundedY = Math.max(halfSizePercent, Math.min(100 - halfSizePercent, y));
   
   emit('positionUpdated', { x: boundedX, y: boundedY });
 };
