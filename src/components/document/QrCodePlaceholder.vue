@@ -75,16 +75,25 @@ const handleDrag = (e: MouseEvent) => {
   const x = ((e.clientX - dragOffset.value.x - rect.left) / rect.width) * 100;
   const y = ((e.clientY - dragOffset.value.y - rect.top) / rect.height) * 100;
   
-  // Calculate the total height including the identity section
+  // Calculate dimensions for constraints
   const qrSize = (size.value / 100) * Math.min(rect.width, rect.height);
   const identityHeight = 60; // Height of identity section in pixels
   const totalHeight = qrSize + identityHeight;
-  const heightPercent = (totalHeight / rect.height) * 100;
+  
+  // Convert sizes to percentages
+  const qrSizePercent = (qrSize / rect.height) * 100;
+  const identityHeightPercent = (identityHeight / rect.height) * 100;
+  const totalHeightPercent = qrSizePercent + identityHeightPercent;
+  
+  // Calculate bounds
+  const minX = qrSizePercent / 2;
+  const maxX = 100 - (qrSizePercent / 2);
+  const minY = qrSizePercent / 2;
+  const maxY = 100 - (totalHeightPercent / 2);
   
   // Keep QR code and identity section within bounds
-  const halfSizePercent = (size.value / 2);
-  const boundedX = Math.max(halfSizePercent, Math.min(100 - halfSizePercent, x));
-  const boundedY = Math.max(halfSizePercent, Math.min(100 - (heightPercent / 2), y));
+  const boundedX = Math.max(minX, Math.min(maxX, x));
+  const boundedY = Math.max(minY, Math.min(maxY, y));
   
   emit('positionUpdated', { x: boundedX, y: boundedY });
 };
