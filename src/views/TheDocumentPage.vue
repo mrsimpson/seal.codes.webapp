@@ -74,32 +74,31 @@ const updateQrPosition = (position: { x: number, y: number }) => {
                 @position-updated="updateQrPosition"
               />
               
-              <!-- Document Controls -->
-              <div class="flex justify-between items-center mt-4">
+              <!-- Quick Position Controls -->
+              <div class="flex justify-center gap-4 mt-4 mb-6">
+                <button 
+                  v-for="(position, key) in {
+                    topLeft: '↖',
+                    topRight: '↗',
+                    bottomLeft: '↙',
+                    bottomRight: '↘'
+                  }"
+                  :key="key"
+                  @click="setCornerPosition(key as any)"
+                  class="w-10 h-10 bg-white rounded-lg shadow-sm hover:bg-gray-50 flex items-center justify-center border border-gray-200 transition-colors"
+                  :title="`${key.replace(/([A-Z])/g, ' $1').trim()} Corner`"
+                >
+                  {{ position }}
+                </button>
+              </div>
+              
+              <div class="flex gap-4">
                 <button 
                   @click="chooseNewDocument"
                   class="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Choose Another Document
                 </button>
-                
-                <!-- Quick Position Controls -->
-                <div class="flex gap-2">
-                  <button 
-                    v-for="(position, key) in {
-                      topLeft: '↖',
-                      topRight: '↗',
-                      bottomLeft: '↙',
-                      bottomRight: '↘'
-                    }"
-                    :key="key"
-                    @click="setCornerPosition(key as any)"
-                    class="w-8 h-8 bg-white rounded-lg shadow-sm hover:bg-gray-50 flex items-center justify-center border border-gray-200 transition-colors"
-                    :title="`${key.replace(/([A-Z])/g, ' $1').trim()} Corner`"
-                  >
-                    {{ position }}
-                  </button>
-                </div>
               </div>
               
               <div class="mt-6">

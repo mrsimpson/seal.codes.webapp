@@ -12,7 +12,6 @@ const documentType = ref<'pdf' | 'image' | null>(null);
 const isLoading = ref(true);
 const isDragging = ref(false);
 const previewRef = ref<HTMLElement | null>(null);
-const qrRef = ref<HTMLElement | null>(null);
 
 // Create document preview
 watch(() => props.document, async (newDocument) => {
@@ -53,22 +52,12 @@ const updatePosition = (e: MouseEvent) => {
   if (!previewRef.value || !isDragging.value) return;
   
   const rect = previewRef.value.getBoundingClientRect();
-  const qrSize = qrRef.value?.offsetWidth || 48;
-  const halfQrSize = qrSize / 2;
-  
-  // Calculate position as percentage
   const x = ((e.clientX - rect.left) / rect.width) * 100;
   const y = ((e.clientY - rect.top) / rect.height) * 100;
   
-  // Calculate boundaries considering QR code size
-  const minX = (halfQrSize / rect.width) * 100;
-  const maxX = 100 - (halfQrSize / rect.width) * 100;
-  const minY = (halfQrSize / rect.height) * 100;
-  const maxY = 100 - (halfQrSize / rect.height) * 100;
-  
   // Keep QR code within bounds
-  const boundedX = Math.max(minX, Math.min(maxX, x));
-  const boundedY = Math.max(minY, Math.min(maxY, y));
+  const boundedX = Math.max(5, Math.min(95, x));
+  const boundedY = Math.max(5, Math.min(95, y));
   
   emit('positionUpdated', { x: boundedX, y: boundedY });
 };
@@ -108,15 +97,13 @@ const stopDragging = () => {
       <!-- Draggable QR code indicator -->
       <div 
         v-if="!hasQr"
-        ref="qrRef"
         class="absolute w-12 h-12 bg-primary-500 bg-opacity-50 border-2 border-primary-500 rounded-md cursor-move"
         :class="{ 'opacity-75': isDragging }"
         :style="{
-          left: `${props.qrPosition.x}%`,
-          top: `${props.qrPosition.y}%`,
-          transform: 'translate(-50%, -50%)'
+          left: `calc(${props.qrPosition.x}% - 24px)`,
+          top: `calc(${props.qrPosition.y}% - 24px)`,
         }"
-        @mousedown.prevent="startDragging"
+        @mousedown="startDragging"
       ></div>
     </div>
     
@@ -124,27 +111,27 @@ const stopDragging = () => {
     <div 
       v-else-if="documentType === 'pdf' && previewUrl" 
       ref="previewRef"
-      class="relative w-full max-w-full h-[400px] p-4"
+      class="flex justify-center p-4"
     >
-      <iframe 
-        :src="`${previewUrl}#view=FitH`" 
-        class="w-full h-full rounded shadow-sm bg-white" 
-        title="PDF preview"
-      ></iframe>
-      
-      <!-- Draggable QR code indicator -->
-      <div 
-        v-if="!hasQr"
-        ref="qrRef"
-        class="absolute w-12 h-12 bg-primary-500 bg-opacity-50 border-2 border-primary-500 rounded-md cursor-move"
-        :class="{ 'opacity-75': isDragging }"
-        :style="{
-          left: `${props.qrPosition.x}%`,
-          top: `${props.qrPosition.y}%`,
-          transform: 'translate(-50%, -50%)'
-        }"
-        @mousedown.prevent="startDragging"
-      ></div>
+      <div class="relative w-full max-w-full h-[400px] border border-gray-300 rounded shadow-sm">
+        <iframe 
+          :src="`${previewUrl}#view=FitH`" 
+          class="w-full h-full rounded" 
+          title="PDF preview"
+        ></iframe>
+        
+        <!-- Draggable QR code indicator -->
+        <div 
+          v-if="!hasQr"
+          class="absolute w-12 h-12 bg-primary-500 bg-opacity-50 border-2 border-primary-500 rounded-md cursor-move"
+          :class="{ 'opacity-75': isDragging }"
+          :style="{
+            left: `calc(${props.qrPosition.x}% - 24px)`,
+            top: `calc(${props.qrPosition.y}% - 24px)`,
+          }"
+          @mousedown="startDragging"
+        ></div>
+      </div>
     </div>
     
     <!-- No preview available -->
