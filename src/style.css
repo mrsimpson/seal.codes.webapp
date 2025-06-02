@@ -79,6 +79,6 @@ p {
   }
   
   .numbered-circle {
-    @apply flex-shrink-0 w-8 h-8 primary-100 rounded-full flex items-center justify-center text-secondary-600 font-medium;
+    @apply flex-shrink-0 w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center text-secondary-600 font-medium;
   }
 }
