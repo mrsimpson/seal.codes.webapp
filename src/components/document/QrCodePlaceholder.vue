@@ -91,14 +91,16 @@ const sizeInPixels = computed(() => {
   >
     <!-- QR Code Container -->
     <div 
-      :style="{
-        width: `${sizeInPixels}px`,
-        height: `${sizeInPixels}px`,
-      }"
       class="relative bg-white rounded-lg shadow-lg"
     >
-      <!-- QR Code with padding -->
-      <div class="p-[10px] pb-[40px]">
+      <!-- QR Code -->
+      <div 
+        :style="{
+          width: `${sizeInPixels}px`,
+          height: `${sizeInPixels}px`,
+        }"
+        class="p-[10px]"
+      >
         <img 
           v-if="qrCodeUrl" 
           :src="qrCodeUrl" 
@@ -107,8 +109,8 @@ const sizeInPixels = computed(() => {
         />
       </div>
       
-      <!-- Two-line Auth Identity Placeholder -->
-      <div class="absolute bottom-2 left-0 right-0 px-2">
+      <!-- Auth Identity Placeholder (below QR code) -->
+      <div class="px-2 py-3 border-t border-gray-100">
         <div class="flex items-center justify-center gap-2 mb-1">
           <div class="w-4 h-4 bg-gray-300 rounded-full"></div>
           <div class="w-16 h-3 bg-gray-300 rounded"></div>
