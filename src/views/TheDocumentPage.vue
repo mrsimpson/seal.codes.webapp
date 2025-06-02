@@ -32,13 +32,24 @@ const handleSocialAuth = async (provider: string) => {
   }
 };
 
+// Calculate safe margins based on QR code size
+const safeMargin = computed(() => {
+  // Add extra margin for the identity section below QR code
+  const identityHeightPercent = 10; // Approximate height of identity section as percentage
+  const totalHeightPercent = qrSize.value + identityHeightPercent;
+  return Math.max(totalHeightPercent / 2, 10); // At least 10% margin
+});
+
 const setCornerPosition = (corner: 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight') => {
+  const margin = safeMargin.value;
+  
   const positions = {
-    topLeft: { x: 10, y: 10 },
-    topRight: { x: 90, y: 10 },
-    bottomLeft: { x: 10, y: 90 },
-    bottomRight: { x: 90, y: 90 }
+    topLeft: { x: margin, y: margin },
+    topRight: { x: 100 - margin, y: margin },
+    bottomLeft: { x: margin, y: 100 - margin },
+    bottomRight: { x: 100 - margin, y: 100 - margin }
   };
+  
   qrPosition.value = positions[corner];
 };
 
