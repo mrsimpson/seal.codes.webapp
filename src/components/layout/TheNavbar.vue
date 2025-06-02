@@ -22,7 +22,7 @@ const navigateTo = (path: string) => {
         <!-- Logo -->
         <div class="flex items-center">
           <a href="/" class="flex items-center" @click.prevent="navigateTo('/')">
-            <span class="text-xl font-bold text-primary-500">seal.codes</span>
+            <span class="text-xl font-bold text-secondary-500">seal.codes</span>
           </a>
         </div>
         
@@ -31,14 +31,14 @@ const navigateTo = (path: string) => {
           <a 
             href="/" 
             @click.prevent="navigateTo('/')"
-            class="text-gray-700 hover:text-secondary-500 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
+            class="text-gray-700 hover:text-primary-500 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
           >
             Home
           </a>
           <a 
             href="/document" 
             @click.prevent="navigateTo('/document')"
-            class="text-gray-700 hover:text-secondary-500 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
+            class="text-gray-700 hover:text-primary-500 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
           >
             Seal Document
           </a>
@@ -48,7 +48,7 @@ const navigateTo = (path: string) => {
         <div class="md:hidden">
           <button 
             @click="toggleMenu" 
-            class="text-gray-700 hover:text-secondary-500 focus:outline-none"
+            class="text-gray-700 hover:text-primary-500 focus:outline-none"
           >
             <svg 
               xmlns="http://www.w3.org/2000/svg" 
@@ -85,14 +85,14 @@ const navigateTo = (path: string) => {
           <a 
             href="/" 
             @click.prevent="navigateTo('/')"
-            class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-secondary-500 hover:bg-gray-50"
+            class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-500 hover:bg-gray-50"
           >
             Home
           </a>
           <a 
             href="/document" 
             @click.prevent="navigateTo('/document')"
-            class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-secondary-500 hover:bg-gray-50"
+            class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-500 hover:bg-gray-50"
           >
             Seal Document
           </a>

@@ -11,18 +11,6 @@ export default {
       },
       colors: {
         primary: {
-          50: '#fef2f2',
-          100: '#fee2e2',
-          200: '#fecaca',
-          300: '#fca5a5',
-          400: '#f87171',
-          500: '#961a1a', // Main red color
-          600: '#7f1616',
-          700: '#681212',
-          800: '#500e0e',
-          900: '#380a0a',
-        },
-        secondary: {
           50: '#f0fdfa',
           100: '#ccfbf1',
           200: '#99f6e4',
@@ -33,6 +21,18 @@ export default {
           700: '#1c6969',
           800: '#154242',
           900: '#0e1c1c',
+        },
+        secondary: {
+          50: '#fef2f2',
+          100: '#fee2e2',
+          200: '#fecaca',
+          300: '#fca5a5',
+          400: '#f87171',
+          500: '#961a1a', // Main red color
+          600: '#7f1616',
+          700: '#681212',
+          800: '#500e0e',
+          900: '#380a0a',
         },
         gray: {
           50: '#f7f7f9', // Light background

@@ -73,18 +73,18 @@ const sizeInPixels = computed(() => {
         width: `${sizeInPixels}px`,
         height: `${sizeInPixels}px`,
       }"
-      class="relative bg-white border-2 border-primary-500 rounded-lg grid grid-cols-3 grid-rows-3 gap-1 p-1"
+      class="relative bg-white border-2 border-black rounded-lg grid grid-cols-3 grid-rows-3 gap-1 p-1"
     >
       <!-- QR Code Pattern -->
-      <div class="bg-primary-500 rounded"></div>
+      <div class="bg-black rounded"></div>
       <div></div>
-      <div class="bg-primary-500 rounded"></div>
+      <div class="bg-black rounded"></div>
       <div></div>
-      <div class="bg-primary-500 rounded"></div>
+      <div class="bg-black rounded"></div>
       <div></div>
-      <div class="bg-primary-500 rounded"></div>
+      <div class="bg-black rounded"></div>
       <div></div>
-      <div class="bg-primary-500 rounded"></div>
+      <div class="bg-black rounded"></div>
     </div>
     
     <!-- Size Controls -->
