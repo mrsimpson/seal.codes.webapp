@@ -66,7 +66,7 @@ const stopDragging = () => {
 const handleDrag = (e: MouseEvent) => {
   if (!isDragging.value) return;
   
-  const container = document.querySelector('.document-preview');
+  const container = document.querySelector('.document-preview img, .document-preview iframe');
   if (!container) return;
   
   const rect = container.getBoundingClientRect();
@@ -75,10 +75,16 @@ const handleDrag = (e: MouseEvent) => {
   const x = ((e.clientX - dragOffset.value.x - rect.left) / rect.width) * 100;
   const y = ((e.clientY - dragOffset.value.y - rect.top) / rect.height) * 100;
   
-  // Keep QR code within bounds considering its size
+  // Calculate the total height including the identity section
+  const qrSize = (size.value / 100) * Math.min(rect.width, rect.height);
+  const identityHeight = 60; // Height of identity section in pixels
+  const totalHeight = qrSize + identityHeight;
+  const heightPercent = (totalHeight / rect.height) * 100;
+  
+  // Keep QR code and identity section within bounds
   const halfSizePercent = (size.value / 2);
   const boundedX = Math.max(halfSizePercent, Math.min(100 - halfSizePercent, x));
-  const boundedY = Math.max(halfSizePercent, Math.min(100 - halfSizePercent, y));
+  const boundedY = Math.max(halfSizePercent, Math.min(100 - (heightPercent / 2), y));
   
   emit('positionUpdated', { x: boundedX, y: boundedY });
 };
