@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { providers } from '../../types/auth';
+
 defineProps<{
   isProcessing: boolean;
 }>();
@@ -7,47 +9,41 @@ const emit = defineEmits<{
   (e: 'providerSelected', provider: string): void;
 }>();
 
-const handleProviderSelect = (provider: string) => {
-  emit('providerSelected', provider);
+const handleProviderSelect = (providerId: string) => {
+  emit('providerSelected', providerId);
 };
 </script>
 
 <template>
-  <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-    <!-- Google -->
+  <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
     <button 
-      @click="handleProviderSelect('google')"
+      v-for="provider in providers" 
+      :key="provider.id"
+      @click="handleProviderSelect(provider.id)"
       :disabled="isProcessing"
-      class="aspect-square flex items-center justify-center p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+      class="aspect-square flex flex-col items-center justify-center p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors relative group"
     >
-      <img src="https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png" alt="Google" class="w-8 h-8 object-contain" />
-    </button>
-
-    <!-- GitHub -->
-    <button 
-      @click="handleProviderSelect('github')"
-      :disabled="isProcessing"
-      class="aspect-square flex items-center justify-center p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
-    >
-      <img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" alt="GitHub" class="w-8 h-8 object-contain" />
-    </button>
-
-    <!-- Microsoft -->
-    <button 
-      @click="handleProviderSelect('microsoft')"
-      :disabled="isProcessing"
-      class="aspect-square flex items-center justify-center p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
-    >
-      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Microsoft_logo.svg/1024px-Microsoft_logo.svg.png" alt="Microsoft" class="w-8 h-8 object-contain" />
-    </button>
-
-    <!-- Apple -->
-    <button 
-      @click="handleProviderSelect('apple')"
-      :disabled="isProcessing"
-      class="aspect-square flex items-center justify-center p-4 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
-    >
-      <img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg" alt="Apple" class="w-8 h-8 object-contain" />
+      <!-- Loading Spinner -->
+      <div 
+        v-if="isProcessing"
+        class="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-xl"
+      >
+        <div class="animate-spin h-5 w-5 border-2 border-primary-500 rounded-full border-t-transparent"></div>
+      </div>
+      
+      <!-- Provider Icon -->
+      <img 
+        :src="provider.icon" 
+        :alt="provider.name"
+        class="w-8 h-8 object-contain mb-2"
+      />
+      
+      <!-- Provider Name -->
+      <span class="text-xs text-gray-600 text-center">{{ provider.name }}</span>
     </button>
   </div>
+  
+  <p class="text-xs text-gray-500 mt-4 text-center">
+    By continuing, you agree to our Terms of Service and Privacy Policy
+  </p>
 </template>
