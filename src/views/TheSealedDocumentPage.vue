@@ -28,6 +28,10 @@ onMounted(async () => {
 const downloadDocument = () => {
   documentStore.downloadSealedDocument();
 };
+
+const goBack = () => {
+  router.push('/document');
+};
 </script>
 
 <template>
@@ -42,9 +46,9 @@ const downloadDocument = () => {
         <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
       </div>
       
-      <div v-else class="md:flex md:gap-8">
+      <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-8">
         <!-- Main Column -->
-        <div class="md:w-7/10">
+        <div class="md:col-span-2">
           <div class="card mb-8 animate-fade-in">
             <h2 class="text-2xl font-bold mb-4">Sealed Document</h2>
             
@@ -59,40 +63,46 @@ const downloadDocument = () => {
               </div>
             </div>
             
-            <div class="flex justify-center mt-4 mb-8">
+            <div class="flex justify-between items-center">
+              <button 
+                @click="goBack"
+                class="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-2"
+              >
+                <span>← Back</span>
+              </button>
+              
               <button 
                 @click="downloadDocument" 
-                class="btn btn-primary flex items-center"
+                class="px-6 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2"
               >
-                <span class="mr-2">Download Document</span>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L10 12.586l2.293-2.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
-                </svg>
+                <span>Download Document</span>
               </button>
             </div>
-            
-            <!-- What's in Your Seal -->
-            <div class="bg-gray-50 p-6 rounded-lg">
-              <h3 class="text-lg font-medium mb-4">What's in Your Seal?</h3>
-              <ul class="space-y-2">
-                <li class="flex items-center">
-                  <span class="w-2 h-2 bg-primary-500 rounded-full mr-2"></span>
-                  A unique document identifier
-                </li>
-                <li class="flex items-center">
-                  <span class="w-2 h-2 bg-primary-500 rounded-full mr-2"></span>
-                  Timestamp of sealing
-                </li>
-                <li class="flex items-center">
-                  <span class="w-2 h-2 bg-primary-500 rounded-full mr-2"></span>
-                  Your authentication information (hashed for privacy)
-                </li>
-                <li class="flex items-center">
-                  <span class="w-2 h-2 bg-primary-500 rounded-full mr-2"></span>
-                  A verification URL that can be accessed by scanning the QR code with any QR code reader
-                </li>
-              </ul>
-            </div>
+          </div>
+        </div>
+        
+        <!-- Sidebar -->
+        <div class="md:col-span-1">
+          <div class="bg-white rounded-xl shadow-sm p-6">
+            <h3 class="text-lg font-medium mb-4">What's in Your Seal?</h3>
+            <ul class="space-y-2">
+              <li class="flex items-center">
+                <span class="w-2 h-2 bg-primary-500 rounded-full mr-2"></span>
+                A unique document identifier
+              </li>
+              <li class="flex items-center">
+                <span class="w-2 h-2 bg-primary-500 rounded-full mr-2"></span>
+                Timestamp of sealing
+              </li>
+              <li class="flex items-center">
+                <span class="w-2 h-2 bg-primary-500 rounded-full mr-2"></span>
+                Your authentication information (hashed for privacy)
+              </li>
+              <li class="flex items-center">
+                <span class="w-2 h-2 bg-primary-500 rounded-full mr-2"></span>
+                A verification URL that can be accessed by scanning the QR code with any QR code reader
+              </li>
+            </ul>
           </div>
         </div>
       </div>
