@@ -3,8 +3,6 @@ import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useDocumentStore } from '../stores/documentStore';
 import DescriptionWrapper from '../components/common/DescriptionWrapper.vue';
-import SealedDescription from '../components/descriptions/SealedDescription.vue';
-import VerificationInstructions from '../components/document/VerificationInstructions.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -15,11 +13,7 @@ const isLoading = ref(true);
 
 onMounted(async () => {
   try {
-    // Load document from store if it exists
-    // In a real app, you might retrieve from local storage or indexedDB
     if (!documentStore.hasDocument || documentStore.documentId !== documentId.value) {
-      // If we don't have the document in the store, we'd try to load it
-      // For this MVP, we'll just redirect to the document page
       router.push('/document');
       return;
     }
@@ -77,23 +71,30 @@ const downloadDocument = () => {
               </button>
             </div>
             
-            <VerificationInstructions />
+            <!-- What's in Your Seal -->
+            <div class="bg-gray-50 p-6 rounded-lg">
+              <h3 class="text-lg font-medium mb-4">What's in Your Seal?</h3>
+              <ul class="space-y-2">
+                <li class="flex items-center">
+                  <span class="w-2 h-2 bg-primary-500 rounded-full mr-2"></span>
+                  A unique document identifier
+                </li>
+                <li class="flex items-center">
+                  <span class="w-2 h-2 bg-primary-500 rounded-full mr-2"></span>
+                  Timestamp of sealing
+                </li>
+                <li class="flex items-center">
+                  <span class="w-2 h-2 bg-primary-500 rounded-full mr-2"></span>
+                  Your authentication information (hashed for privacy)
+                </li>
+                <li class="flex items-center">
+                  <span class="w-2 h-2 bg-primary-500 rounded-full mr-2"></span>
+                  A verification URL that can be accessed by scanning the QR code with any QR code reader
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
-        
-        <!-- Description Column -->
-        <div class="hidden md:block md:w-3/10">
-          <DescriptionWrapper title="About Your Sealed Document">
-            <SealedDescription />
-          </DescriptionWrapper>
-        </div>
-      </div>
-      
-      <!-- Mobile Description (shown below main content on mobile) -->
-      <div class="md:hidden mt-8">
-        <DescriptionWrapper title="About Your Sealed Document">
-          <SealedDescription />
-        </DescriptionWrapper>
       </div>
     </div>
   </div>
