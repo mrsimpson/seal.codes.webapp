@@ -38,7 +38,7 @@ p {
 
 /* Focus styles for accessibility */
 :focus-visible {
-  @apply outline-primary-500 outline-2 outline-offset-2;
+  @apply outline-secondary-500 outline-2 outline-offset-2;
 }
 
 /* Animation classes */
@@ -66,10 +66,6 @@ p {
     @apply bg-secondary-500 hover:bg-secondary-600 text-white focus:ring-secondary-500;
   }
   
-  .btn-accent {
-    @apply bg-accent-500 hover:bg-accent-600 text-white focus:ring-accent-500;
-  }
-  
   .btn-outline {
     @apply border border-gray-300 hover:bg-gray-100 focus:ring-gray-400;
   }
@@ -79,6 +75,10 @@ p {
   }
   
   .input {
-    @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500;
+    @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-secondary-500 focus:border-secondary-500;
+  }
+  
+  .numbered-circle {
+    @apply flex-shrink-0 w-8 h-8 bg-secondary-100 rounded-full flex items-center justify-center text-secondary-600 font-medium;
   }
 }

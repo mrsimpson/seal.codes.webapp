@@ -14,8 +14,8 @@ const startProcess = () => {
   <div class="min-h-screen bg-white">
     <!-- Hero Section -->
     <main class="container mx-auto px-4 py-16 text-center">
-      <h1 class="text-6xl font-bold mb-6 bg-gradient-to-r from-primary-500 via-secondary-500 to-accent-500 text-transparent bg-clip-text">
-        The Digital Seal for the<br>Modern Age
+      <h1 class="text-6xl font-bold mb-6">
+        The Digital <span class="text-primary-500">Seal</span> for the<br>Modern Age
       </h1>
       
       <p class="text-xl text-gray-600 mb-12 max-w-2xl mx-auto">
@@ -24,7 +24,7 @@ const startProcess = () => {
       
       <button 
         @click="startProcess"
-        class="bg-primary-500 text-white text-xl px-12 py-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-200"
+        class="bg-secondary-500 text-white text-xl px-12 py-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-200"
       >
         It's yours – seal it!
       </button>
