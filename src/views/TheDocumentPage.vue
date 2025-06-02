@@ -67,41 +67,43 @@ const updateQrPosition = (position: { x: number, y: number }) => {
             />
             
             <div v-else>
-              <DocumentPreview 
-                :document="documentStore.uploadedDocument" 
-                :qr-position="qrPosition"
-                :has-qr="false"
-                @position-updated="updateQrPosition"
-              />
-              
-              <!-- Quick Position Controls -->
-              <div class="flex justify-center gap-4 mt-4 mb-6">
-                <button 
-                  v-for="(position, key) in {
-                    topLeft: '↖',
-                    topRight: '↗',
-                    bottomLeft: '↙',
-                    bottomRight: '↘'
-                  }"
-                  :key="key"
-                  @click="setCornerPosition(key as any)"
-                  class="w-10 h-10 bg-white rounded-lg shadow-sm hover:bg-gray-50 flex items-center justify-center border border-gray-200 transition-colors"
-                  :title="`${key.replace(/([A-Z])/g, ' $1').trim()} Corner`"
-                >
-                  {{ position }}
-                </button>
+              <div class="mb-4">
+                <DocumentPreview 
+                  :document="documentStore.uploadedDocument" 
+                  :qr-position="qrPosition"
+                  :has-qr="false"
+                  @position-updated="updateQrPosition"
+                />
               </div>
               
-              <div class="flex gap-4">
+              <!-- Controls Bar -->
+              <div class="flex justify-between items-center mb-6">
                 <button 
                   @click="chooseNewDocument"
                   class="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Choose Another Document
                 </button>
+                
+                <div class="flex gap-2">
+                  <button 
+                    v-for="(position, key) in {
+                      topLeft: '↖',
+                      topRight: '↗',
+                      bottomLeft: '↙',
+                      bottomRight: '↘'
+                    }"
+                    :key="key"
+                    @click="setCornerPosition(key as any)"
+                    class="w-10 h-10 bg-white rounded-lg shadow-sm hover:bg-gray-50 flex items-center justify-center border border-gray-200 transition-colors"
+                    :title="`${key.replace(/([A-Z])/g, ' $1').trim()} Corner`"
+                  >
+                    {{ position }}
+                  </button>
+                </div>
               </div>
               
-              <div class="mt-6">
+              <div>
                 <h3 class="text-xl font-medium mb-3">Authenticate yourself with</h3>
                 <SocialAuthSelector 
                   @provider-selected="handleSocialAuth"

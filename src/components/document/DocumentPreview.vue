@@ -86,12 +86,12 @@ const stopDragging = () => {
     <div 
       v-else-if="documentType === 'image' && previewUrl" 
       ref="previewRef"
-      class="relative flex justify-center p-4"
+      class="relative"
     >
       <img 
         :src="previewUrl" 
         alt="Document preview" 
-        class="max-w-full max-h-[400px] rounded shadow-sm" 
+        class="max-w-full rounded" 
       />
       
       <!-- Draggable QR code indicator -->
@@ -111,27 +111,25 @@ const stopDragging = () => {
     <div 
       v-else-if="documentType === 'pdf' && previewUrl" 
       ref="previewRef"
-      class="flex justify-center p-4"
+      class="relative w-full h-[400px]"
     >
-      <div class="relative w-full max-w-full h-[400px] border border-gray-300 rounded shadow-sm">
-        <iframe 
-          :src="`${previewUrl}#view=FitH`" 
-          class="w-full h-full rounded" 
-          title="PDF preview"
-        ></iframe>
-        
-        <!-- Draggable QR code indicator -->
-        <div 
-          v-if="!hasQr"
-          class="absolute w-12 h-12 bg-primary-500 bg-opacity-50 border-2 border-primary-500 rounded-md cursor-move"
-          :class="{ 'opacity-75': isDragging }"
-          :style="{
-            left: `calc(${props.qrPosition.x}% - 24px)`,
-            top: `calc(${props.qrPosition.y}% - 24px)`,
-          }"
-          @mousedown="startDragging"
-        ></div>
-      </div>
+      <iframe 
+        :src="`${previewUrl}#view=FitH`" 
+        class="w-full h-full rounded" 
+        title="PDF preview"
+      ></iframe>
+      
+      <!-- Draggable QR code indicator -->
+      <div 
+        v-if="!hasQr"
+        class="absolute w-12 h-12 bg-primary-500 bg-opacity-50 border-2 border-primary-500 rounded-md cursor-move"
+        :class="{ 'opacity-75': isDragging }"
+        :style="{
+          left: `calc(${props.qrPosition.x}% - 24px)`,
+          top: `calc(${props.qrPosition.y}% - 24px)`,
+        }"
+        @mousedown="startDragging"
+      ></div>
     </div>
     
     <!-- No preview available -->
