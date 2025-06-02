@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
+import QrCodePlaceholder from './QrCodePlaceholder.vue';
 
 const props = defineProps<{
   document: File | null;
@@ -10,7 +11,8 @@ const props = defineProps<{
 const previewUrl = ref('');
 const documentType = ref<'pdf' | 'image' | null>(null);
 const isLoading = ref(true);
-const isDragging = ref(false);
+const containerWidth = ref(0);
+const containerHeight = ref(0);
 const previewRef = ref<HTMLElement | null>(null);
 
 // Create document preview
@@ -35,9 +37,27 @@ watch(() => props.document, async (newDocument) => {
   isLoading.value = false;
 }, { immediate: true });
 
-// Clean up object URL on component unmount
+// Update container dimensions when image loads
 onMounted(() => {
+  const updateDimensions = () => {
+    if (previewRef.value) {
+      const rect = previewRef.value.getBoundingClientRect();
+      containerWidth.value = rect.width;
+      containerHeight.value = rect.height;
+    }
+  };
+
+  window.addEventListener('resize', updateDimensions);
+  
+  // Initial update after image loads
+  const img = new Image();
+  img.onload = updateDimensions;
+  if (previewUrl.value) {
+    img.src = previewUrl.value;
+  }
+
   return () => {
+    window.removeEventListener('resize', updateDimensions);
     if (previewUrl.value) {
       URL.revokeObjectURL(previewUrl.value);
     }
@@ -46,33 +66,8 @@ onMounted(() => {
 
 const emit = defineEmits<{
   (e: 'positionUpdated', position: { x: number, y: number }): void;
+  (e: 'sizeUpdated', size: number): void;
 }>();
-
-const updatePosition = (e: MouseEvent) => {
-  if (!previewRef.value || !isDragging.value) return;
-  
-  const rect = previewRef.value.getBoundingClientRect();
-  const x = ((e.clientX - rect.left) / rect.width) * 100;
-  const y = ((e.clientY - rect.top) / rect.height) * 100;
-  
-  // Keep QR code within bounds
-  const boundedX = Math.max(5, Math.min(95, x));
-  const boundedY = Math.max(5, Math.min(95, y));
-  
-  emit('positionUpdated', { x: boundedX, y: boundedY });
-};
-
-const startDragging = () => {
-  isDragging.value = true;
-  document.addEventListener('mousemove', updatePosition);
-  document.addEventListener('mouseup', stopDragging);
-};
-
-const stopDragging = () => {
-  isDragging.value = false;
-  document.removeEventListener('mousemove', updatePosition);
-  document.removeEventListener('mouseup', stopDragging);
-};
 </script>
 
 <template>
@@ -86,50 +81,53 @@ const stopDragging = () => {
     <div 
       v-else-if="documentType === 'image' && previewUrl" 
       ref="previewRef"
-      class="relative"
+      class="relative document-preview"
     >
       <img 
         :src="previewUrl" 
         alt="Document preview" 
-        class="max-w-full rounded" 
+        class="w-full rounded" 
+        @load="() => {
+          if (previewRef.value) {
+            const rect = previewRef.value.getBoundingClientRect();
+            containerWidth = rect.width;
+            containerHeight = rect.height;
+          }
+        }"
       />
       
-      <!-- Draggable QR code indicator -->
-      <div 
-        v-if="!hasQr"
-        class="absolute w-12 h-12 bg-primary-500 bg-opacity-50 border-2 border-primary-500 rounded-md cursor-move"
-        :class="{ 'opacity-75': isDragging }"
-        :style="{
-          left: `calc(${props.qrPosition.x}% - 24px)`,
-          top: `calc(${props.qrPosition.y}% - 24px)`,
-        }"
-        @mousedown="startDragging"
-      ></div>
+      <!-- QR code placeholder -->
+      <QrCodePlaceholder
+        v-if="!hasQr && containerWidth && containerHeight"
+        :position="qrPosition"
+        :container-width="containerWidth"
+        :container-height="containerHeight"
+        @position-updated="$emit('positionUpdated', $event)"
+        @size-updated="$emit('sizeUpdated', $event)"
+      />
     </div>
     
     <!-- PDF preview -->
     <div 
       v-else-if="documentType === 'pdf' && previewUrl" 
       ref="previewRef"
-      class="relative w-full h-[400px]"
+      class="relative document-preview w-full h-[600px]"
     >
       <iframe 
         :src="`${previewUrl}#view=FitH`" 
         class="w-full h-full rounded" 
         title="PDF preview"
-      ></iframe>
+      />
       
-      <!-- Draggable QR code indicator -->
-      <div 
-        v-if="!hasQr"
-        class="absolute w-12 h-12 bg-primary-500 bg-opacity-50 border-2 border-primary-500 rounded-md cursor-move"
-        :class="{ 'opacity-75': isDragging }"
-        :style="{
-          left: `calc(${props.qrPosition.x}% - 24px)`,
-          top: `calc(${props.qrPosition.y}% - 24px)`,
-        }"
-        @mousedown="startDragging"
-      ></div>
+      <!-- QR code placeholder -->
+      <QrCodePlaceholder
+        v-if="!hasQr && containerWidth && containerHeight"
+        :position="qrPosition"
+        :container-width="containerWidth"
+        :container-height="containerHeight"
+        @position-updated="$emit('positionUpdated', $event)"
+        @size-updated="$emit('sizeUpdated', $event)"
+      />
     </div>
     
     <!-- No preview available -->

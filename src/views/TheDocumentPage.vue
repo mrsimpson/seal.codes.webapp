@@ -13,6 +13,7 @@ const documentStore = useDocumentStore();
 const isDocumentLoaded = computed(() => documentStore.hasDocument);
 const isProcessing = ref(false);
 const qrPosition = ref({ x: 50, y: 50 });
+const qrSize = ref(20); // Default 20% of container width
 
 const handleDocumentLoaded = (file: File) => {
   documentStore.setDocument(file);
@@ -22,7 +23,7 @@ const handleSocialAuth = async (provider: string) => {
   isProcessing.value = true;
   try {
     await documentStore.authenticateWith(provider);
-    await documentStore.sealDocument(qrPosition.value);
+    await documentStore.sealDocument({ ...qrPosition.value, size: qrSize.value });
     router.push(`/sealed/${documentStore.documentId}`);
   } catch (error) {
     console.error('Authentication error:', error);
@@ -33,10 +34,10 @@ const handleSocialAuth = async (provider: string) => {
 
 const setCornerPosition = (corner: 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight') => {
   const positions = {
-    topLeft: { x: 5, y: 5 },
-    topRight: { x: 95, y: 5 },
-    bottomLeft: { x: 5, y: 95 },
-    bottomRight: { x: 95, y: 95 }
+    topLeft: { x: 10, y: 10 },
+    topRight: { x: 90, y: 10 },
+    bottomLeft: { x: 10, y: 90 },
+    bottomRight: { x: 90, y: 90 }
   };
   qrPosition.value = positions[corner];
 };
@@ -47,6 +48,10 @@ const chooseNewDocument = () => {
 
 const updateQrPosition = (position: { x: number, y: number }) => {
   qrPosition.value = position;
+};
+
+const updateQrSize = (size: number) => {
+  qrSize.value = size;
 };
 </script>
 
@@ -73,6 +78,7 @@ const updateQrPosition = (position: { x: number, y: number }) => {
                   :qr-position="qrPosition"
                   :has-qr="false"
                   @position-updated="updateQrPosition"
+                  @size-updated="updateQrSize"
                 />
               </div>
               
