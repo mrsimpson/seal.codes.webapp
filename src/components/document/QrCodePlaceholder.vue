@@ -18,6 +18,7 @@ const emit = defineEmits<{
 const isDragging = ref(false);
 const size = ref(20); // Default 20% of container width
 const qrCodeUrl = ref('');
+const dragOffset = ref({ x: 0, y: 0 });
 
 // Generate QR code
 const generateQrCode = async () => {
@@ -37,26 +38,42 @@ const generateQrCode = async () => {
 
 generateQrCode();
 
-const startDragging = () => {
+const startDragging = (e: MouseEvent) => {
+  const element = e.currentTarget as HTMLElement;
+  const rect = element.getBoundingClientRect();
+  
+  // Calculate offset from click position to element center
+  dragOffset.value = {
+    x: e.clientX - (rect.left + rect.width / 2),
+    y: e.clientY - (rect.top + rect.height / 2)
+  };
+  
   isDragging.value = true;
   document.addEventListener('mousemove', handleDrag);
   document.addEventListener('mouseup', stopDragging);
+  
+  // Prevent text selection while dragging
+  document.body.style.userSelect = 'none';
 };
 
 const stopDragging = () => {
   isDragging.value = false;
   document.removeEventListener('mousemove', handleDrag);
   document.removeEventListener('mouseup', stopDragging);
+  document.body.style.userSelect = '';
 };
 
 const handleDrag = (e: MouseEvent) => {
   if (!isDragging.value) return;
   
-  const rect = document.querySelector('.document-preview')?.getBoundingClientRect();
-  if (!rect) return;
+  const container = document.querySelector('.document-preview');
+  if (!container) return;
   
-  const x = ((e.clientX - rect.left) / rect.width) * 100;
-  const y = ((e.clientY - rect.top) / rect.height) * 100;
+  const rect = container.getBoundingClientRect();
+  
+  // Calculate position considering the drag offset
+  const x = ((e.clientX - dragOffset.value.x - rect.left) / rect.width) * 100;
+  const y = ((e.clientY - dragOffset.value.y - rect.top) / rect.height) * 100;
   
   // Keep QR code within bounds considering its size
   const halfSizePercent = (size.value / 2);
@@ -81,17 +98,23 @@ const sizeInPixels = computed(() => {
 
 <template>
   <div 
-    class="absolute cursor-move"
+    class="absolute cursor-move select-none"
+    :class="{ 'transition-none': isDragging }"
     :style="{
       left: `${position.x}%`,
       top: `${position.y}%`,
       transform: 'translate(-50%, -50%)',
+      transition: isDragging ? 'none' : 'all 0.2s ease'
     }"
     @mousedown="startDragging"
   >
     <!-- QR Code Container -->
     <div 
       class="relative bg-white rounded-lg shadow-lg"
+      :class="{ 'scale-105': isDragging }"
+      :style="{
+        transition: isDragging ? 'none' : 'transform 0.2s ease',
+      }"
     >
       <!-- QR Code -->
       <div 
@@ -106,6 +129,7 @@ const sizeInPixels = computed(() => {
           :src="qrCodeUrl" 
           alt="QR Code"
           class="w-full h-full"
+          draggable="false"
         />
       </div>
       
