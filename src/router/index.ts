@@ -4,7 +4,6 @@ import { RouteRecordRaw } from 'vue-router';
 import TheHomePage from '../views/TheHomePage.vue';
 import TheDocumentPage from '../views/TheDocumentPage.vue';
 import TheSealedDocumentPage from '../views/TheSealedDocumentPage.vue';
-import TheVerificationPage from '../views/TheVerificationPage.vue';
 import NotFoundPage from '../views/NotFoundPage.vue';
 
 const routes: RouteRecordRaw[] = [
@@ -30,14 +29,6 @@ const routes: RouteRecordRaw[] = [
     component: TheSealedDocumentPage,
     meta: {
       title: 'Your Sealed Document - seal.codes'
-    }
-  },
-  {
-    path: '/verify/:id',
-    name: 'verify',
-    component: TheVerificationPage,
-    meta: {
-      title: 'Verify Document - seal.codes'
     }
   },
   {
