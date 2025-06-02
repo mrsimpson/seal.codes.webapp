@@ -10,6 +10,7 @@ const props = defineProps<{
 const previewUrl = ref('');
 const documentType = ref<'pdf' | 'image' | null>(null);
 const isLoading = ref(true);
+const isDragging = ref(false);
 
 // Create document preview
 watch(() => props.document, async (newDocument) => {
@@ -41,6 +42,34 @@ onMounted(() => {
     }
   };
 });
+
+const emit = defineEmits<{
+  (e: 'positionUpdated', position: { x: number, y: number }): void;
+}>();
+
+const handleDragStart = (e: DragEvent) => {
+  if (!e.target) return;
+  isDragging.value = true;
+};
+
+const handleDrag = (e: DragEvent) => {
+  if (!e.target || !e.clientX || !e.clientY) return;
+  
+  const previewEl = e.currentTarget as HTMLElement;
+  const rect = previewEl.getBoundingClientRect();
+  
+  const x = ((e.clientX - rect.left) / rect.width) * 100;
+  const y = ((e.clientY - rect.top) / rect.height) * 100;
+  
+  emit('positionUpdated', {
+    x: Math.max(5, Math.min(95, x)),
+    y: Math.max(5, Math.min(95, y))
+  });
+};
+
+const handleDragEnd = () => {
+  isDragging.value = false;
+};
 </script>
 
 <template>
@@ -54,6 +83,7 @@ onMounted(() => {
     <div 
       v-else-if="documentType === 'image' && previewUrl" 
       class="relative flex justify-center p-4"
+      @dragover.prevent
     >
       <img 
         :src="previewUrl" 
@@ -61,13 +91,18 @@ onMounted(() => {
         class="max-w-full max-h-[400px] rounded shadow-sm" 
       />
       
-      <!-- QR code position indicator -->
+      <!-- Draggable QR code indicator -->
       <div 
         v-if="!hasQr"
-        class="absolute w-12 h-12 bg-primary-500 bg-opacity-50 border-2 border-primary-500 rounded-md pointer-events-none"
+        draggable="true"
+        @dragstart="handleDragStart"
+        @drag="handleDrag"
+        @dragend="handleDragEnd"
+        class="absolute w-12 h-12 bg-primary-500 bg-opacity-50 border-2 border-primary-500 rounded-md cursor-move"
+        :class="{ 'opacity-75': isDragging }"
         :style="{
-          left: `calc(${qrPosition.x}% - 24px)`,
-          top: `calc(${qrPosition.y}% - 24px)`,
+          left: `calc(${props.qrPosition.x}% - 24px)`,
+          top: `calc(${props.qrPosition.y}% - 24px)`,
         }"
       ></div>
     </div>
@@ -76,6 +111,7 @@ onMounted(() => {
     <div 
       v-else-if="documentType === 'pdf' && previewUrl" 
       class="flex justify-center p-4"
+      @dragover.prevent
     >
       <div class="relative w-full max-w-full h-[400px] border border-gray-300 rounded shadow-sm">
         <iframe 
@@ -84,13 +120,18 @@ onMounted(() => {
           title="PDF preview"
         ></iframe>
         
-        <!-- QR code position indicator (not fully accurate for PDFs) -->
+        <!-- Draggable QR code indicator -->
         <div 
           v-if="!hasQr"
-          class="absolute w-12 h-12 bg-primary-500 bg-opacity-50 border-2 border-primary-500 rounded-md pointer-events-none"
+          draggable="true"
+          @dragstart="handleDragStart"
+          @drag="handleDrag"
+          @dragend="handleDragEnd"
+          class="absolute w-12 h-12 bg-primary-500 bg-opacity-50 border-2 border-primary-500 rounded-md cursor-move"
+          :class="{ 'opacity-75': isDragging }"
           :style="{
-            left: `calc(${qrPosition.x}% - 24px)`,
-            top: `calc(${qrPosition.y}% - 24px)`,
+            left: `calc(${props.qrPosition.x}% - 24px)`,
+            top: `calc(${props.qrPosition.y}% - 24px)`,
           }"
         ></div>
       </div>
