@@ -32,7 +32,7 @@ const fileTypes = ['PDF', 'PNG', 'JPG/JPEG'];
         :key="step.number"
         class="flex items-start gap-3"
       >
-        <div class="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-medium">
+        <div class="numbered-circle">
           {{ step.number }}
         </div>
         <p class="text-gray-700">{{ step.text }}</p>
