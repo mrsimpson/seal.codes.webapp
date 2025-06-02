@@ -37,9 +37,8 @@ const generateQrCode = async () => {
 
 generateQrCode();
 
-const handleMouseDown = (e: MouseEvent) => {
+const startDragging = () => {
   isDragging.value = true;
-  handleDrag(e); // Start dragging immediately
   document.addEventListener('mousemove', handleDrag);
   document.addEventListener('mouseup', stopDragging);
 };
@@ -51,6 +50,8 @@ const stopDragging = () => {
 };
 
 const handleDrag = (e: MouseEvent) => {
+  if (!isDragging.value) return;
+  
   const rect = document.querySelector('.document-preview')?.getBoundingClientRect();
   if (!rect) return;
   
@@ -97,7 +98,7 @@ const providerIcon = computed(() => {
       top: `${position.y}%`,
       transform: 'translate(-50%, -50%)',
     }"
-    @mousedown="handleMouseDown"
+    @mousedown="startDragging"
   >
     <!-- QR Code Container -->
     <div 
@@ -105,7 +106,7 @@ const providerIcon = computed(() => {
         width: `${sizeInPixels}px`,
         height: `${sizeInPixels}px`,
       }"
-      class="relative bg-white rounded-xl shadow-lg px-0 pb-[20%] pt-0"
+      class="relative bg-white rounded-xl shadow-lg p-4"
     >
       <!-- QR Code -->
       <img 
