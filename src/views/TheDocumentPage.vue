@@ -13,7 +13,6 @@ const documentStore = useDocumentStore();
 const isDocumentLoaded = computed(() => documentStore.hasDocument);
 const isProcessing = ref(false);
 const qrPosition = ref({ x: 50, y: 50 });
-const isDragging = ref(false);
 
 const handleDocumentLoaded = (file: File) => {
   documentStore.setDocument(file);
@@ -46,30 +45,8 @@ const chooseNewDocument = () => {
   documentStore.reset();
 };
 
-// Drag and drop functionality
-const handleDragStart = (e: DragEvent) => {
-  if (!e.target) return;
-  isDragging.value = true;
-};
-
-const handleDrag = (e: DragEvent) => {
-  if (!e.target || !e.clientX || !e.clientY) return;
-  
-  const previewEl = document.querySelector('.document-preview-container');
-  if (!previewEl) return;
-  
-  const rect = previewEl.getBoundingClientRect();
-  const x = ((e.clientX - rect.left) / rect.width) * 100;
-  const y = ((e.clientY - rect.top) / rect.height) * 100;
-  
-  qrPosition.value = {
-    x: Math.max(5, Math.min(95, x)),
-    y: Math.max(5, Math.min(95, y))
-  };
-};
-
-const handleDragEnd = () => {
-  isDragging.value = false;
+const updateQrPosition = (position: { x: number, y: number }) => {
+  qrPosition.value = position;
 };
 </script>
 
@@ -90,47 +67,32 @@ const handleDragEnd = () => {
             />
             
             <div v-else>
-              <div class="relative document-preview-container">
-                <DocumentPreview 
-                  :document="documentStore.uploadedDocument" 
-                  :qr-position="qrPosition"
-                  :has-qr="false"
-                />
-                
-                <!-- QR Code Corner Controls -->
-                <div class="absolute right-0 top-1/2 -translate-y-1/2 transform flex flex-col gap-2 mr-4">
-                  <button 
-                    @click="setCornerPosition('topLeft')"
-                    class="w-8 h-8 bg-white rounded-lg shadow-md hover:bg-gray-50 flex items-center justify-center border border-gray-200"
-                    title="Top Left"
-                  >
-                    ↖
-                  </button>
-                  <button 
-                    @click="setCornerPosition('topRight')"
-                    class="w-8 h-8 bg-white rounded-lg shadow-md hover:bg-gray-50 flex items-center justify-center border border-gray-200"
-                    title="Top Right"
-                  >
-                    ↗
-                  </button>
-                  <button 
-                    @click="setCornerPosition('bottomLeft')"
-                    class="w-8 h-8 bg-white rounded-lg shadow-md hover:bg-gray-50 flex items-center justify-center border border-gray-200"
-                    title="Bottom Left"
-                  >
-                    ↙
-                  </button>
-                  <button 
-                    @click="setCornerPosition('bottomRight')"
-                    class="w-8 h-8 bg-white rounded-lg shadow-md hover:bg-gray-50 flex items-center justify-center border border-gray-200"
-                    title="Bottom Right"
-                  >
-                    ↘
-                  </button>
-                </div>
+              <DocumentPreview 
+                :document="documentStore.uploadedDocument" 
+                :qr-position="qrPosition"
+                :has-qr="false"
+                @position-updated="updateQrPosition"
+              />
+              
+              <!-- Quick Position Controls -->
+              <div class="flex justify-center gap-4 mt-4 mb-6">
+                <button 
+                  v-for="(position, key) in {
+                    topLeft: '↖',
+                    topRight: '↗',
+                    bottomLeft: '↙',
+                    bottomRight: '↘'
+                  }"
+                  :key="key"
+                  @click="setCornerPosition(key as any)"
+                  class="w-10 h-10 bg-white rounded-lg shadow-sm hover:bg-gray-50 flex items-center justify-center border border-gray-200 transition-colors"
+                  :title="`${key.replace(/([A-Z])/g, ' $1').trim()} Corner`"
+                >
+                  {{ position }}
+                </button>
               </div>
               
-              <div class="flex gap-4 mt-6">
+              <div class="flex gap-4">
                 <button 
                   @click="chooseNewDocument"
                   class="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"

@@ -11,6 +11,7 @@ const previewUrl = ref('');
 const documentType = ref<'pdf' | 'image' | null>(null);
 const isLoading = ref(true);
 const isDragging = ref(false);
+const previewRef = ref<HTMLElement | null>(null);
 
 // Create document preview
 watch(() => props.document, async (newDocument) => {
@@ -47,28 +48,30 @@ const emit = defineEmits<{
   (e: 'positionUpdated', position: { x: number, y: number }): void;
 }>();
 
-const handleDragStart = (e: DragEvent) => {
-  if (!e.target) return;
-  isDragging.value = true;
-};
-
-const handleDrag = (e: DragEvent) => {
-  if (!e.target || !e.clientX || !e.clientY) return;
+const updatePosition = (e: MouseEvent) => {
+  if (!previewRef.value || !isDragging.value) return;
   
-  const previewEl = e.currentTarget as HTMLElement;
-  const rect = previewEl.getBoundingClientRect();
-  
+  const rect = previewRef.value.getBoundingClientRect();
   const x = ((e.clientX - rect.left) / rect.width) * 100;
   const y = ((e.clientY - rect.top) / rect.height) * 100;
   
-  emit('positionUpdated', {
-    x: Math.max(5, Math.min(95, x)),
-    y: Math.max(5, Math.min(95, y))
-  });
+  // Keep QR code within bounds
+  const boundedX = Math.max(5, Math.min(95, x));
+  const boundedY = Math.max(5, Math.min(95, y));
+  
+  emit('positionUpdated', { x: boundedX, y: boundedY });
 };
 
-const handleDragEnd = () => {
+const startDragging = () => {
+  isDragging.value = true;
+  document.addEventListener('mousemove', updatePosition);
+  document.addEventListener('mouseup', stopDragging);
+};
+
+const stopDragging = () => {
   isDragging.value = false;
+  document.removeEventListener('mousemove', updatePosition);
+  document.removeEventListener('mouseup', stopDragging);
 };
 </script>
 
@@ -82,8 +85,8 @@ const handleDragEnd = () => {
     <!-- Image preview -->
     <div 
       v-else-if="documentType === 'image' && previewUrl" 
+      ref="previewRef"
       class="relative flex justify-center p-4"
-      @dragover.prevent
     >
       <img 
         :src="previewUrl" 
@@ -94,24 +97,21 @@ const handleDragEnd = () => {
       <!-- Draggable QR code indicator -->
       <div 
         v-if="!hasQr"
-        draggable="true"
-        @dragstart="handleDragStart"
-        @drag="handleDrag"
-        @dragend="handleDragEnd"
         class="absolute w-12 h-12 bg-primary-500 bg-opacity-50 border-2 border-primary-500 rounded-md cursor-move"
         :class="{ 'opacity-75': isDragging }"
         :style="{
           left: `calc(${props.qrPosition.x}% - 24px)`,
           top: `calc(${props.qrPosition.y}% - 24px)`,
         }"
+        @mousedown="startDragging"
       ></div>
     </div>
     
     <!-- PDF preview -->
     <div 
       v-else-if="documentType === 'pdf' && previewUrl" 
+      ref="previewRef"
       class="flex justify-center p-4"
-      @dragover.prevent
     >
       <div class="relative w-full max-w-full h-[400px] border border-gray-300 rounded shadow-sm">
         <iframe 
@@ -123,16 +123,13 @@ const handleDragEnd = () => {
         <!-- Draggable QR code indicator -->
         <div 
           v-if="!hasQr"
-          draggable="true"
-          @dragstart="handleDragStart"
-          @drag="handleDrag"
-          @dragend="handleDragEnd"
           class="absolute w-12 h-12 bg-primary-500 bg-opacity-50 border-2 border-primary-500 rounded-md cursor-move"
           :class="{ 'opacity-75': isDragging }"
           :style="{
             left: `calc(${props.qrPosition.x}% - 24px)`,
             top: `calc(${props.qrPosition.y}% - 24px)`,
           }"
+          @mousedown="startDragging"
         ></div>
       </div>
     </div>
