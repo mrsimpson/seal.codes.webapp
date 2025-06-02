@@ -77,17 +77,6 @@ const sizeInPixels = computed(() => {
   const minDimension = Math.min(props.containerWidth, props.containerHeight);
   return (minDimension * size.value) / 100;
 });
-
-// Get provider icon URL
-const providerIcon = computed(() => {
-  const icons = {
-    google: 'https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png',
-    github: 'https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png',
-    microsoft: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Microsoft_logo.svg/1024px-Microsoft_logo.svg.png',
-    apple: 'https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg'
-  };
-  return props.authProvider ? icons[props.authProvider as keyof typeof icons] : null;
-});
 </script>
 
 <template>
@@ -118,18 +107,10 @@ const providerIcon = computed(() => {
         />
       </div>
       
-      <!-- Auth Info -->
-      <div 
-        v-if="authProvider && userName"
-        class="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-white rounded-full shadow px-3 py-1 flex items-center gap-2"
-      >
-        <img 
-          v-if="providerIcon"
-          :src="providerIcon" 
-          :alt="authProvider"
-          class="w-4 h-4 object-contain"
-        />
-        <span class="text-xs font-medium">{{ userName }}</span>
+      <!-- Auth Identity Placeholder -->
+      <div class="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-gray-100 rounded-full px-3 py-1 flex items-center gap-2">
+        <div class="w-4 h-4 bg-gray-300 rounded-full"></div>
+        <div class="w-16 h-3 bg-gray-300 rounded"></div>
       </div>
     </div>
     
