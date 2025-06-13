@@ -5,7 +5,6 @@ import './style.css'
 import App from './App.vue'
 import routes from './router'
 import { i18n } from './i18n'
-import { MagicToastPlugin } from '@maas/vue-equipment/plugins'
 
 // Start WASM preloading immediately at app startup
 import { wasmPreloader } from './services/wasm-preloader'
