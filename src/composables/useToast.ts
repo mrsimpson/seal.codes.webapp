@@ -1,4 +1,4 @@
-import { ref, reactive } from 'vue'
+import { ref, readonly } from 'vue'
 import type { Component } from 'vue'
 
 export interface Toast {

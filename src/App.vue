@@ -3,6 +3,7 @@ import { onMounted } from 'vue'
 import { useDocumentStore } from '@/stores/documentStore'
 import TheNavbar from './components/layout/TheNavbar.vue'
 import TheFooter from './components/layout/TheFooter.vue'
+import ToastContainer from './components/common/ToastContainer.vue'
 
 const documentStore = useDocumentStore()
 
@@ -29,5 +30,8 @@ onMounted(async () => {
     </main>
     
     <TheFooter />
+    
+    <!-- Global Toast Container -->
+    <ToastContainer />
   </div>
 </template>
