@@ -35,6 +35,7 @@ export const useDocumentStore = defineStore('document', () => {
   // OAuth flow state
   const pendingAuthentication = ref<string | null>(null) // Provider being authenticated
   const shouldSealAfterAuth = ref<boolean>(false) // Flag to seal after auth
+  const isProcessingPostAuth = ref<boolean>(false) // Flag for post-auth processing
   
   // Format conversion state
   const formatConversionResult = ref<FormatConversionResult | null>(null)
@@ -126,6 +127,8 @@ export const useDocumentStore = defineStore('document', () => {
           qrSizePercent: qrSizePercent.value,
           shouldSeal: true,
           timestamp: Date.now(),
+          documentName: uploadedDocument.value?.name,
+          documentType: documentType.value,
         }
         localStorage.setItem('seal-codes-oauth-state', JSON.stringify(stateToSave))
         console.log('💾 Saved OAuth state to localStorage:', stateToSave)
@@ -165,8 +168,16 @@ export const useDocumentStore = defineStore('document', () => {
     }
   }
   
-  const handleAuthenticationSuccess = async () => {
+  const handleAuthenticationSuccess = async (): Promise<string | null> => {
     console.log('🎉 Authentication successful, checking for pending seal operation...')
+    
+    // Prevent multiple simultaneous processing
+    if (isProcessingPostAuth.value) {
+      console.log('⏳ Already processing post-auth, skipping...')
+      return null
+    }
+    
+    isProcessingPostAuth.value = true
     
     try {
       // Check if we have saved OAuth state
@@ -187,11 +198,19 @@ export const useDocumentStore = defineStore('document', () => {
         if (savedState.shouldSeal && hasDocument.value && isAuthenticated.value) {
           console.log('🔒 Auto-sealing document after authentication...')
           
-          // Clean up saved state
+          // Clean up saved state first
           localStorage.removeItem('seal-codes-oauth-state')
+          
+          // Small delay to ensure UI is ready
+          await new Promise(resolve => setTimeout(resolve, 500))
           
           // Trigger document sealing
           const documentId = await sealDocument(qrPosition.value, qrSizePercent.value)
+          
+          // Reset pending state
+          pendingAuthentication.value = null
+          shouldSealAfterAuth.value = false
+          
           return documentId
         }
         
@@ -206,7 +225,14 @@ export const useDocumentStore = defineStore('document', () => {
     } catch (error) {
       console.error('❌ Error handling authentication success:', error)
       localStorage.removeItem('seal-codes-oauth-state')
+      
+      // Reset state on error
+      pendingAuthentication.value = null
+      shouldSealAfterAuth.value = false
+      
       throw error
+    } finally {
+      isProcessingPostAuth.value = false
     }
     
     return null
@@ -318,7 +344,10 @@ export const useDocumentStore = defineStore('document', () => {
         console.log('✅ User already authenticated:', session.user.email)
         
         // Check if we need to handle post-OAuth sealing
-        await handleAuthenticationSuccess()
+        const documentId = await handleAuthenticationSuccess()
+        if (documentId) {
+          console.log('🎯 Post-auth sealing completed, document ID:', documentId)
+        }
       }
 
       // Listen for auth state changes
@@ -328,7 +357,10 @@ export const useDocumentStore = defineStore('document', () => {
           console.log('✅ User authenticated:', session.user.email)
           
           // Handle post-OAuth sealing
-          await handleAuthenticationSuccess()
+          const documentId = await handleAuthenticationSuccess()
+          if (documentId) {
+            console.log('🎯 Post-auth sealing completed, document ID:', documentId)
+          }
         } else {
           currentUser.value = null
           console.log('🔐 User signed out')
@@ -607,6 +639,10 @@ export const useDocumentStore = defineStore('document', () => {
     // Reset OAuth flow state
     pendingAuthentication.value = null
     shouldSealAfterAuth.value = false
+    isProcessingPostAuth.value = false
+    
+    // Clean up any saved OAuth state
+    localStorage.removeItem('seal-codes-oauth-state')
     
     console.log('✅ Document store reset completed')
   }
@@ -627,6 +663,7 @@ export const useDocumentStore = defineStore('document', () => {
     qrSizePercent,
     pendingAuthentication,
     shouldSealAfterAuth,
+    isProcessingPostAuth,
     
     // Getters
     hasDocument,

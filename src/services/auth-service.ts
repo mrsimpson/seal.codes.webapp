@@ -36,10 +36,19 @@ export class AuthService {
     try {
       console.log(`🔐 Initiating OAuth sign-in with ${provider}`)
       
+      // Always redirect back to /document to continue the sealing flow
+      const redirectTo = `${window.location.origin}/document`
+      
+      console.log(`🔗 OAuth redirect URL: ${redirectTo}`)
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: provider as Provider,
         options: {
-          redirectTo: `${window.location.origin}/document`,
+          redirectTo,
+          // Add query parameter to indicate this is a sealing flow
+          queryParams: {
+            flow: 'seal-document'
+          }
         },
       })
 
@@ -61,7 +70,7 @@ export class AuthService {
         throw new Error('authentication_failed')
       }
 
-      console.log(`✅ OAuth sign-in initiated for ${provider}`)
+      console.log(`✅ OAuth sign-in initiated for ${provider}, redirecting to ${redirectTo}`)
     } catch (error) {
       console.error('Unexpected error during OAuth sign-in:', error)
       
