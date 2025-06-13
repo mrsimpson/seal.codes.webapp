@@ -80,6 +80,34 @@ const handleSocialAuth = async (provider: string) => {
   }
 }
 
+const handleManualSeal = async () => {
+  if (!documentStore.hasDocument || !documentStore.isAuthenticated) {
+    error(t('Document and authentication required'))
+    return
+  }
+
+  isProcessing.value = true
+  try {
+    info(t('Sealing your document...'))
+    
+    const documentId = await documentStore.sealDocument(qrPosition.value, qrSize.value)
+    
+    success(t('Document sealed successfully!'))
+    router.push(`/sealed/${documentId}`)
+    
+  } catch (err) {
+    console.error('Manual sealing error:', err)
+    
+    if (err instanceof CodedError) {
+      error(t(`errors.${err.code}`))
+    } else {
+      error(t('errors.document_seal_failed'))
+    }
+  } finally {
+    isProcessing.value = false
+  }
+}
+
 // Watch for successful authentication and automatic sealing
 watch(
   () => [documentStore.isAuthenticated, documentStore.documentId],
@@ -161,37 +189,73 @@ const updateQrSize = (size: number) => {
                 </BaseButton>
               </div>
 
-              <!-- Authentication Status -->
-              <div v-if="documentStore.isAuthenticated" class="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                <div class="flex items-center gap-3">
-                  <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
+              <!-- Authentication Section - Always Visible -->
+              <div class="border-t pt-6">
+                <!-- Already Authenticated -->
+                <div v-if="documentStore.isAuthenticated" class="space-y-4">
+                  <!-- Authentication Status -->
+                  <div class="p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <div class="flex items-center gap-3">
+                      <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                      </div>
+                      <div>
+                        <p class="font-medium text-green-800">
+                          Authenticated as {{ documentStore.userName }}
+                        </p>
+                        <p class="text-sm text-green-600">
+                          via {{ documentStore.authProvider }}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <p class="font-medium text-green-800">
-                      Authenticated as {{ documentStore.userName }}
+
+                  <!-- Seal Document Button -->
+                  <div class="text-center">
+                    <BaseButton
+                      variant="cta"
+                      size="lg"
+                      :loading="isProcessing"
+                      :disabled="isProcessing"
+                      @click="handleManualSeal"
+                    >
+                      🔒 Seal This Document
+                    </BaseButton>
+                    <p class="text-sm text-gray-600 mt-2">
+                      This will create a permanent seal with your current authentication
                     </p>
-                    <p class="text-sm text-green-600">
-                      via {{ documentStore.authProvider }}
+                  </div>
+
+                  <!-- Option to Sign Out and Use Different Provider -->
+                  <div class="text-center pt-4 border-t">
+                    <p class="text-sm text-gray-600 mb-3">
+                      Want to use a different account?
                     </p>
+                    <BaseButton
+                      variant="outline"
+                      size="sm"
+                      @click="documentStore.signOut"
+                    >
+                      Sign Out & Choose Different Account
+                    </BaseButton>
                   </div>
                 </div>
-              </div>
 
-              <!-- Social Authentication Section -->
-              <div v-else>
-                <h3 class="text-xl font-medium mb-3">
-                  {{ t("document.controls.authenticateWith") }}
-                </h3>
-                <p class="text-gray-600 mb-4">
-                  Choose how you want to authenticate your identity for this seal:
-                </p>
-                <SocialAuthSelector
-                  :is-processing="isProcessing"
-                  @provider-selected="handleSocialAuth"
-                />
+                <!-- Not Authenticated -->
+                <div v-else>
+                  <h3 class="text-xl font-medium mb-3">
+                    {{ t("document.controls.authenticateWith") }}
+                  </h3>
+                  <p class="text-gray-600 mb-4">
+                    Choose how you want to authenticate your identity for this seal:
+                  </p>
+                  <SocialAuthSelector
+                    :is-processing="isProcessing"
+                    @provider-selected="handleSocialAuth"
+                  />
+                </div>
               </div>
             </div>
           </div>
