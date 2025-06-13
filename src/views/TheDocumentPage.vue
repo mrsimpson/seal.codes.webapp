@@ -15,7 +15,6 @@ import { QRCodeUIPosition } from '@/types/qrcode'
 const router = useRouter()
 const { t } = useI18n()
 const documentStore = useDocumentStore()
-const { add } = useMagicToast('document-toasts')
 
 // Toast component
 const ToastComponent = defineAsyncComponent(() => import('../components/common/ToastComponent.vue'))
