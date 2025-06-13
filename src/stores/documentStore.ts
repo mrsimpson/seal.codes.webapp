@@ -6,6 +6,8 @@ import { attestationBuilder } from '@/services/attestation-builder'
 import { qrSealRenderer } from '@/services/qr-seal-renderer'
 import { documentHashService } from '@/services/document-hash-service'
 import { formatConversionService, type FormatConversionResult } from '@/services/format-conversion-service'
+import { authService, type AuthUser } from '@/services/auth-service'
+import { signingService } from '@/services/signing-service'
 import type { QRCodeUIPosition, AttestationData } from '@/types/qrcode'
 
 // Unique ID generation for documents
@@ -21,9 +23,9 @@ export const useDocumentStore = defineStore('document', () => {
   const documentPreviewUrl = ref<string>('')
   const sealedDocumentUrl = ref<string>('')
   const sealedDocumentBlob = ref<Blob | null>(null)
-  const isAuthenticated = ref(false)
-  const authProvider = ref<string | null>(null)
-  const userName = ref<string | null>(null)
+  const currentUser = ref<AuthUser | null>(null)
+  const isAuthenticating = ref(false)
+  const authError = ref<string | null>(null)
   
   // Format conversion state
   const formatConversionResult = ref<FormatConversionResult | null>(null)
@@ -32,8 +34,13 @@ export const useDocumentStore = defineStore('document', () => {
   // Getters
   const hasDocument = computed(() => uploadedDocument.value !== null)
   const fileName = computed(() => uploadedDocument.value?.name || '')
+  const isAuthenticated = computed(() => currentUser.value !== null)
+  const authProvider = computed(() => currentUser.value?.provider || null)
+  const userName = computed(() => currentUser.value?.displayName || currentUser.value?.email || null)
+  const userEmail = computed(() => currentUser.value?.email || null)
+  
   const currentAttestationData = computed((): AttestationData | undefined => {
-    if (!isAuthenticated.value || !authProvider.value || !userName.value) {
+    if (!isAuthenticated.value || !authProvider.value || !userEmail.value) {
       return undefined
     }
     
@@ -74,25 +81,33 @@ export const useDocumentStore = defineStore('document', () => {
   const authenticateWith = async (provider: string) => {
     console.log('🔐 Authenticating with provider:', provider)
     
-    // Simulate authentication with a 1 second delay
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    isAuthenticating.value = true
+    authError.value = null
     
-    isAuthenticated.value = true
-    authProvider.value = provider
-    userName.value = `User (${provider})`
-    
-    // Generate a unique document ID
-    documentId.value = generateUniqueId()
-    
-    console.log('✅ Authentication successful:', {
-      provider: authProvider.value,
-      userName: userName.value,
-      documentId: documentId.value,
-    })
+    try {
+      // Initiate OAuth sign-in
+      const { error } = await authService.signInWithProvider(provider)
+      
+      if (error) {
+        authError.value = error.message
+        throw new Error(error.message)
+      }
+      
+      // OAuth sign-in initiated - the user will be redirected
+      // The actual authentication completion will be handled by onAuthStateChange
+      console.log('✅ OAuth sign-in initiated')
+      
+    } catch (error) {
+      console.error('❌ Authentication failed:', error)
+      authError.value = error instanceof Error ? error.message : 'Authentication failed'
+      throw error
+    } finally {
+      isAuthenticating.value = false
+    }
   }
   
   const sealDocument = async (position: QRCodeUIPosition, sizePercent: number = 20) => {
-    if (!uploadedDocument.value || !isAuthenticated.value) {
+    if (!uploadedDocument.value || !isAuthenticated.value || !currentUser.value) {
       throw new Error('Document or authentication missing')
     }
 
@@ -119,30 +134,41 @@ export const useDocumentStore = defineStore('document', () => {
       )
       console.log('🔢 Document hashes calculated:', documentHashes)
 
-      // Build compact attestation data with exclusion zone
-      const attestationData = attestationBuilder.buildCompactAttestation({
+      // Build attestation package for server signing (without timestamp and service info)
+      const attestationPackage = attestationBuilder.buildAttestationPackage({
         documentHashes,
         identity: {
-          provider: authProvider.value!,
-          identifier: userName.value!,
-        },
-        serviceInfo: {
-          publicKeyId: 'placeholder-key-id',
+          provider: currentUser.value.provider,
+          identifier: currentUser.value.email,
         },
         exclusionZone: pixelCalculation.exclusionZone,
       })
-      console.log('📋 Attestation data built:', attestationData)
+      console.log('📋 Attestation package built for signing:', attestationPackage)
+
+      // Send to server for signing
+      const signingResponse = await signingService.signAttestation(attestationPackage)
+      console.log('✅ Server signing completed:', signingResponse)
+
+      // Combine client package with server signature to create final attestation data
+      const finalAttestationData = attestationBuilder.combineWithServerSignature(
+        attestationPackage,
+        signingResponse
+      )
+      console.log('🔗 Final attestation data created:', finalAttestationData)
 
       // Generate complete QR seal (including borders, identity, etc.)
       // Pass the base URL for verification links
       const sealResult = await qrSealRenderer.generateSeal({
-        attestationData,
+        attestationData: finalAttestationData,
         qrSizeInPixels: pixelCalculation.sizeInPixels,
-        providerId: authProvider.value!,
-        userIdentifier: userName.value!,
+        providerId: currentUser.value.provider,
+        userIdentifier: currentUser.value.displayName,
         baseUrl: window.location.origin,
       })
       console.log('🎨 QR seal generated:', sealResult.dimensions)
+
+      // Generate a unique document ID
+      documentId.value = generateUniqueId()
 
       // Embed the complete seal
       if (documentType.value === 'pdf') {
@@ -165,7 +191,47 @@ export const useDocumentStore = defineStore('document', () => {
       return documentId.value
     } catch (error) {
       console.error('❌ Error sealing document:', error)
-      throw new Error('Failed to seal document')
+      throw new Error('Failed to seal document: ' + (error instanceof Error ? error.message : 'Unknown error'))
+    }
+  }
+  
+  // Initialize authentication state
+  const initializeAuth = async () => {
+    console.log('🔐 Initializing authentication state...')
+    
+    try {
+      // Get current session
+      const session = await authService.getSession()
+      if (session) {
+        currentUser.value = session.user
+        console.log('✅ User already authenticated:', session.user.email)
+      }
+
+      // Listen for auth state changes
+      authService.onAuthStateChange((session) => {
+        if (session) {
+          currentUser.value = session.user
+          console.log('✅ User authenticated:', session.user.email)
+        } else {
+          currentUser.value = null
+          console.log('🔐 User signed out')
+        }
+      })
+    } catch (error) {
+      console.error('❌ Error initializing auth:', error)
+    }
+  }
+  
+  const signOut = async () => {
+    console.log('🔐 Signing out user...')
+    
+    try {
+      await authService.signOut()
+      currentUser.value = null
+      console.log('✅ User signed out successfully')
+    } catch (error) {
+      console.error('❌ Error signing out:', error)
+      throw error
     }
   }
   
@@ -196,7 +262,7 @@ export const useDocumentStore = defineStore('document', () => {
 
   // Helper function to build attestation data
   const buildAttestationData = (): AttestationData => {
-    if (!authProvider.value || !userName.value) {
+    if (!authProvider.value || !userEmail.value) {
       throw new Error('Authentication data missing')
     }
 
@@ -218,7 +284,7 @@ export const useDocumentStore = defineStore('document', () => {
       },
       identity: {
         provider: authProvider.value,
-        identifier: userName.value,
+        identifier: userEmail.value,
       },
       serviceInfo: {
         publicKeyId: 'placeholder-key-id',
@@ -406,18 +472,16 @@ export const useDocumentStore = defineStore('document', () => {
       URL.revokeObjectURL(sealedDocumentUrl.value)
     }
     
-    // Reset state
+    // Reset state (but keep authentication)
     uploadedDocument.value = null
     documentType.value = null
     documentId.value = ''
     documentPreviewUrl.value = ''
     sealedDocumentUrl.value = ''
     sealedDocumentBlob.value = null
-    isAuthenticated.value = false
-    authProvider.value = null
-    userName.value = null
     formatConversionResult.value = null
     showFormatConversionNotification.value = false
+    authError.value = null
     
     console.log('✅ Document store reset completed')
   }
@@ -429,15 +493,19 @@ export const useDocumentStore = defineStore('document', () => {
     documentId,
     documentPreviewUrl,
     sealedDocumentUrl,
-    isAuthenticated,
-    authProvider,
-    userName,
+    currentUser,
+    isAuthenticating,
+    authError,
     formatConversionResult,
     showFormatConversionNotification,
     
     // Getters
     hasDocument,
     fileName,
+    isAuthenticated,
+    authProvider,
+    userName,
+    userEmail,
     currentAttestationData,
     
     // Actions
@@ -445,6 +513,8 @@ export const useDocumentStore = defineStore('document', () => {
     authenticateWith,
     sealDocument,
     downloadSealedDocument,
+    initializeAuth,
+    signOut,
     acknowledgeFormatConversion: () => {
       showFormatConversionNotification.value = false
     },

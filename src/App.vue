@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
+import { useDocumentStore } from '@/stores/documentStore'
 import TheNavbar from './components/layout/TheNavbar.vue'
 import TheFooter from './components/layout/TheFooter.vue'
 
-onMounted(() => {
-  // Initialize any global app logic here
+const documentStore = useDocumentStore()
+
+onMounted(async () => {
+  // Initialize authentication state
+  await documentStore.initializeAuth()
 })
 </script>
 
