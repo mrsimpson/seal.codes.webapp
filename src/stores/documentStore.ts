@@ -6,7 +6,7 @@ import { attestationBuilder } from '@/services/attestation-builder'
 import { qrSealRenderer } from '@/services/qr-seal-renderer'
 import { documentHashService } from '@/services/document-hash-service'
 import { formatConversionService, type FormatConversionResult } from '@/services/format-conversion-service'
-import { authService, type AuthUser } from '@/services/auth-service'
+import { authService, type AuthUser, OAuthProviderError } from '@/services/auth-service'
 import { signingService } from '@/services/signing-service'
 import type { QRCodeUIPosition, AttestationData } from '@/types/qrcode'
 
@@ -89,6 +89,12 @@ export const useDocumentStore = defineStore('document', () => {
       const { error } = await authService.signInWithProvider(provider)
       
       if (error) {
+        // Check if this is a provider configuration error
+        if (error instanceof OAuthProviderError && error.isConfigurationError) {
+          // This will be handled by the component to show a toast
+          throw error
+        }
+        
         authError.value = error.message
         throw new Error(error.message)
       }
@@ -99,6 +105,12 @@ export const useDocumentStore = defineStore('document', () => {
       
     } catch (error) {
       console.error('❌ Authentication failed:', error)
+      
+      // Re-throw OAuthProviderError so the component can handle it
+      if (error instanceof OAuthProviderError) {
+        throw error
+      }
+      
       authError.value = error instanceof Error ? error.message : 'Authentication failed'
       throw error
     } finally {

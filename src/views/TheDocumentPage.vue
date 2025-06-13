@@ -4,6 +4,8 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useDocumentStore } from '../stores/documentStore'
 import { qrCodeUICalculator } from '@/services/qrcode-ui-calculator'
+import { OAuthProviderError } from '@/services/auth-service'
+import { useMagicToast } from '@vue-equipment/magic-toast'
 import DocumentDropzone from '../components/document/DocumentDropzone.vue'
 import DocumentPreview from '../components/document/DocumentPreview.vue'
 import SocialAuthSelector from '../components/auth/SocialAuthSelector.vue'
@@ -14,6 +16,7 @@ import { QRCodeUIPosition } from '@/types/qrcode'
 const router = useRouter()
 const { t } = useI18n()
 const documentStore = useDocumentStore()
+const { toast } = useMagicToast()
 
 const isDocumentLoaded = computed(() => documentStore.hasDocument)
 const isProcessing = ref(false)
@@ -27,7 +30,10 @@ const handleDocumentLoaded = async (file: File) => {
     console.log('✅ Document successfully set in store')
   } catch (error) {
     console.error('❌ Error setting document in store:', error)
-    // TODO: Show error message to user
+    toast.error('Failed to load document. Please try again.', {
+      duration: 3000,
+      position: 'top-center'
+    })
   }
 }
 
@@ -39,7 +45,21 @@ const handleSocialAuth = async (provider: string) => {
     // after the user returns from OAuth redirect and is authenticated
   } catch (error) {
     console.error('Authentication error:', error)
-    // TODO: Show error message to user
+    
+    // Handle OAuth provider configuration errors
+    if (error instanceof OAuthProviderError && error.isConfigurationError) {
+      toast.error(error.message, {
+        duration: 5000,
+        position: 'top-center'
+      })
+    } else {
+      // Handle other authentication errors
+      const errorMessage = error instanceof Error ? error.message : 'Authentication failed'
+      toast.error(errorMessage, {
+        duration: 3000,
+        position: 'top-center'
+      })
+    }
   } finally {
     isProcessing.value = false
   }
@@ -51,11 +71,29 @@ watch(
   async ([hasDocument, isAuthenticated]) => {
     if (hasDocument && isAuthenticated) {
       try {
+        isProcessing.value = true
+        toast.info('Sealing your document...', {
+          duration: 2000,
+          position: 'top-center'
+        })
+        
         await documentStore.sealDocument(qrPosition.value, qrSize.value)
+        
+        toast.success('Document sealed successfully!', {
+          duration: 2000,
+          position: 'top-center'
+        })
+        
         router.push(`/sealed/${documentStore.documentId}`)
       } catch (error) {
         console.error('Error sealing document:', error)
-        // TODO: Show error message to user
+        const errorMessage = error instanceof Error ? error.message : 'Failed to seal document'
+        toast.error(errorMessage, {
+          duration: 5000,
+          position: 'top-center'
+        })
+      } finally {
+        isProcessing.value = false
       }
     }
   }

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { authProvidersService, type AuthProvider } from '@/services/auth-providers-service'
+import { OAuthProviderError } from '@/services/auth-service'
+import { useMagicToast } from '@vue-equipment/magic-toast'
 
 defineProps<{
   isProcessing: boolean;
@@ -13,9 +15,27 @@ const emit = defineEmits<{
 const providers = ref<AuthProvider[]>([])
 const isLoading = ref(true)
 const error = ref<string | null>(null)
+const { toast } = useMagicToast()
 
-const handleProviderSelect = (providerId: string) => {
-  emit('providerSelected', providerId)
+const handleProviderSelect = async (providerId: string) => {
+  try {
+    emit('providerSelected', providerId)
+  } catch (error) {
+    // Handle OAuth provider configuration errors
+    if (error instanceof OAuthProviderError && error.isConfigurationError) {
+      toast.error(error.message, {
+        duration: 5000,
+        position: 'top-center'
+      })
+    } else {
+      // Handle other errors
+      const errorMessage = error instanceof Error ? error.message : 'Authentication failed'
+      toast.error(errorMessage, {
+        duration: 3000,
+        position: 'top-center'
+      })
+    }
+  }
 }
 
 onMounted(async () => {

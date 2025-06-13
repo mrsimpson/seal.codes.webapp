@@ -22,6 +22,20 @@ export interface AuthSession {
 }
 
 /**
+ * Custom error class for OAuth provider configuration issues
+ */
+export class OAuthProviderError extends Error {
+  constructor(
+    message: string,
+    public provider: string,
+    public isConfigurationError: boolean = false
+  ) {
+    super(message)
+    this.name = 'OAuthProviderError'
+  }
+}
+
+/**
  * Authentication service class
  */
 export class AuthService {
@@ -31,7 +45,7 @@ export class AuthService {
    * @param provider - OAuth provider (google, github, etc.)
    * @returns Promise that resolves when sign-in is initiated
    */
-  async signInWithProvider(provider: string): Promise<{ error?: AuthError }> {
+  async signInWithProvider(provider: string): Promise<{ error?: AuthError | OAuthProviderError }> {
     try {
       console.log(`🔐 Initiating OAuth sign-in with ${provider}`)
       
@@ -44,6 +58,19 @@ export class AuthService {
 
       if (error) {
         console.error('OAuth sign-in error:', error)
+        
+        // Check if this is a provider configuration error
+        if (error.message?.includes('provider is not enabled') || 
+            error.message?.includes('Unsupported provider')) {
+          return { 
+            error: new OAuthProviderError(
+              `${provider} authentication is not yet configured. This app is in active development and more providers will be added soon.`,
+              provider,
+              true
+            )
+          }
+        }
+        
         return { error }
       }
 
@@ -51,9 +78,22 @@ export class AuthService {
       return {}
     } catch (error) {
       console.error('Unexpected error during OAuth sign-in:', error)
+      
+      // Check if this looks like a configuration error
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      if (errorMessage.includes('provider') || errorMessage.includes('not enabled')) {
+        return { 
+          error: new OAuthProviderError(
+            `${provider} authentication is not yet configured. This app is in active development and more providers will be added soon.`,
+            provider,
+            true
+          )
+        }
+      }
+      
       return { 
         error: { 
-          message: error instanceof Error ? error.message : 'Unknown error',
+          message: errorMessage,
           name: 'UnknownError',
           status: 500
         } as AuthError 
