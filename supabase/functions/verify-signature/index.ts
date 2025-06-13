@@ -35,10 +35,6 @@ interface AttestationData {
   u?: string;
 }
 
-interface VerificationRequest {
-  attestationData: AttestationData;
-}
-
 interface SignatureVerificationResult {
   isValid: boolean;
   publicKeyId: string;
@@ -55,254 +51,192 @@ interface SignatureVerificationResult {
   };
 }
 
-interface SigningKey {
-  key_id: string;
-  public_key: string;
-  algorithm: string;
-  created_at: string;
-  expires_at?: string;
-}
-
 serve(async (req) => {
-  console.log(`🔧 Verify Signature Function called: ${req.method} ${req.url}`)
-  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    console.log('✅ Handling CORS preflight request')
     return new Response(null, { headers: corsHeaders })
   }
 
-  if (req.method !== 'POST') {
-    console.log(`❌ Method not allowed: ${req.method}`)
-    return new Response(
-      JSON.stringify({ error: 'Method not allowed' }),
-      { 
-        status: 405, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      },
-    )
-  }
-
   try {
-    console.log('🔍 Starting signature verification process...')
-    
-    // Initialize Supabase client with service role for database access
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-    
-    console.log('📋 Environment check:', {
-      hasSupabaseUrl: !!supabaseUrl,
-      hasServiceKey: !!supabaseServiceKey,
-    })
+    // Initialize Supabase client with service role key for database access
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     
     if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('❌ Missing Supabase environment variables')
-      return new Response(
-        JSON.stringify({ error: 'Server configuration error: Missing Supabase configuration' }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        },
-      )
+      throw new Error('Missing Supabase configuration')
     }
-    
-    // Create client for database operations (using service role)
-    const supabaseService = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Parse the verification request
-    const verificationRequest: VerificationRequest = await req.json()
-    const { attestationData } = verificationRequest
-    
-    console.log('📦 Received verification request:', {
-      publicKeyId: attestationData.s.k,
-      timestamp: attestationData.t,
-      hasSignature: !!attestationData.sig,
-      provider: attestationData.i.p,
-      identifier: attestationData.i.id,
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
     })
+
+    // Parse request body
+    const { attestationData }: { attestationData: AttestationData } = await req.json()
+
+    console.log('🔐 Starting signature verification for key:', attestationData.s.k)
 
     // Validate required fields
     if (!attestationData.sig) {
-      console.log('❌ No signature found in attestation data')
-      return new Response(
-        JSON.stringify({
-          isValid: false,
-          publicKeyId: attestationData.s.k,
-          timestamp: attestationData.t,
-          identity: {
-            provider: attestationData.i.p,
-            identifier: attestationData.i.id,
-          },
-          error: 'No signature found in attestation data',
-        } as SignatureVerificationResult),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      return Response.json({
+        isValid: false,
+        publicKeyId: attestationData.s.k,
+        timestamp: attestationData.t,
+        identity: {
+          provider: attestationData.i.p,
+          identifier: attestationData.i.id,
         },
-      )
+        error: 'No signature found in attestation data',
+      } as SignatureVerificationResult, {
+        headers: corsHeaders,
+      })
     }
 
     if (!attestationData.s.k) {
-      console.log('❌ No public key ID found in attestation data')
-      return new Response(
-        JSON.stringify({
-          isValid: false,
-          publicKeyId: '',
-          timestamp: attestationData.t,
-          identity: {
-            provider: attestationData.i.p,
-            identifier: attestationData.i.id,
-          },
-          error: 'No public key ID found in attestation data',
-        } as SignatureVerificationResult),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      return Response.json({
+        isValid: false,
+        publicKeyId: '',
+        timestamp: attestationData.t,
+        identity: {
+          provider: attestationData.i.p,
+          identifier: attestationData.i.id,
         },
-      )
+        error: 'No public key ID found in attestation data',
+      } as SignatureVerificationResult, {
+        headers: corsHeaders,
+      })
     }
 
-    // Get the public key from database using the key ID
-    console.log('🔑 Retrieving public key from database...')
+    // Fetch the public key from the database using service role
+    console.log('📋 Fetching public key for ID:', attestationData.s.k)
     
-    const { data: keyData, error: keyError } = await supabaseService
+    const { data: keyData, error: keyError } = await supabase
       .from('signing_keys')
-      .select('key_id, public_key, algorithm, created_at, expires_at')
+      .select('public_key, algorithm, created_at, expires_at')
       .eq('id', attestationData.s.k)
       .single()
-    
-    if (keyError || !keyData) {
-      console.error('❌ Failed to retrieve public key:', keyError)
-      return new Response(
-        JSON.stringify({
-          isValid: false,
-          publicKeyId: attestationData.s.k,
-          timestamp: attestationData.t,
-          identity: {
-            provider: attestationData.i.p,
-            identifier: attestationData.i.id,
-          },
-          error: `Public key not found: ${attestationData.s.k}`,
-          details: {
-            keyFound: false,
-            signatureMatch: false,
-            timestampValid: false,
-          },
-        } as SignatureVerificationResult),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        },
-      )
-    }
 
-    const signingKey: SigningKey = keyData
-    console.log('✅ Retrieved public key:', {
-      keyId: signingKey.key_id,
-      algorithm: signingKey.algorithm,
-      hasPublicKey: !!signingKey.public_key,
-    })
-
-    // Check if the key was valid at the time of signing
-    const attestationTime = new Date(attestationData.t)
-    const keyCreatedAt = new Date(signingKey.created_at)
-    const keyExpiresAt = signingKey.expires_at ? new Date(signingKey.expires_at) : null
-    
-    const timestampValid = attestationTime >= keyCreatedAt && 
-                          (!keyExpiresAt || attestationTime <= keyExpiresAt)
-    
-    if (!timestampValid) {
-      console.error('❌ Key was not valid at attestation time:', {
-        attestationTime: attestationData.t,
-        keyCreatedAt: signingKey.created_at,
-        keyExpiresAt: signingKey.expires_at,
-      })
-      return new Response(
-        JSON.stringify({
-          isValid: false,
-          publicKeyId: attestationData.s.k,
-          timestamp: attestationData.t,
-          identity: {
-            provider: attestationData.i.p,
-            identifier: attestationData.i.id,
-          },
-          error: 'Public key was not valid at the time of attestation',
-          details: {
-            keyFound: true,
-            signatureMatch: false,
-            timestampValid: false,
-          },
-        } as SignatureVerificationResult),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        },
-      )
-    }
-
-    // Reconstruct the data that was signed (same as in sign-attestation)
-    const packageToVerify = {
-      hashes: {
-        cryptographic: attestationData.h.c,
-        pHash: attestationData.h.p.p,
-        dHash: attestationData.h.p.d,
-      },
-      identity: {
-        provider: attestationData.i.p,
-        identifier: attestationData.i.id,
-      },
-      exclusionZone: {
-        x: attestationData.e.x,
-        y: attestationData.e.y,
-        width: attestationData.e.w,
-        height: attestationData.e.h,
-        fillColor: `#${attestationData.e.f}`,
-      },
-      timestamp: attestationData.t,
-      serviceInfo: {
+    if (keyError) {
+      console.error('❌ Database error fetching key:', keyError)
+      return Response.json({
+        isValid: false,
         publicKeyId: attestationData.s.k,
-      },
-      ...(attestationData.u && { userUrl: attestationData.u }),
+        timestamp: attestationData.t,
+        identity: {
+          provider: attestationData.i.p,
+          identifier: attestationData.i.id,
+        },
+        error: `Database error: ${keyError.message}`,
+        details: {
+          keyFound: false,
+          signatureMatch: false,
+          timestampValid: false,
+        },
+      } as SignatureVerificationResult, {
+        headers: corsHeaders,
+      })
     }
 
-    const dataToVerify = JSON.stringify(packageToVerify)
-    const encoder = new TextEncoder()
-    const dataBytes = encoder.encode(dataToVerify)
+    if (!keyData) {
+      console.error('❌ Public key not found:', attestationData.s.k)
+      return Response.json({
+        isValid: false,
+        publicKeyId: attestationData.s.k,
+        timestamp: attestationData.t,
+        identity: {
+          provider: attestationData.i.p,
+          identifier: attestationData.i.id,
+        },
+        error: `Public key not found: ${attestationData.s.k}`,
+        details: {
+          keyFound: false,
+          signatureMatch: false,
+          timestampValid: false,
+        },
+      } as SignatureVerificationResult, {
+        headers: corsHeaders,
+      })
+    }
 
-    console.log('🔐 Verifying signature with Ed25519...')
+    console.log('✅ Found public key for verification')
+
+    // Check if key was valid at the time of signing
+    const signingTime = new Date(attestationData.t)
+    const keyCreated = new Date(keyData.created_at)
+    const keyExpires = keyData.expires_at ? new Date(keyData.expires_at) : null
+
+    const timestampValid = signingTime >= keyCreated && (!keyExpires || signingTime <= keyExpires)
+
+    if (!timestampValid) {
+      console.error('❌ Key was not valid at signing time')
+      return Response.json({
+        isValid: false,
+        publicKeyId: attestationData.s.k,
+        timestamp: attestationData.t,
+        identity: {
+          provider: attestationData.i.p,
+          identifier: attestationData.i.id,
+        },
+        error: 'Key was not valid at the time of signing',
+        details: {
+          keyFound: true,
+          signatureMatch: false,
+          timestampValid: false,
+        },
+      } as SignatureVerificationResult, {
+        headers: corsHeaders,
+      })
+    }
+
+    // Verify the signature
+    console.log('🔐 Verifying signature...')
 
     try {
-      // Parse the public key from PEM format
-      const publicKeyPem = signingKey.public_key
-      const publicKeyData = publicKeyPem
-        .replace('-----BEGIN PUBLIC KEY-----', '')
-        .replace('-----END PUBLIC KEY-----', '')
-        .replace(/\s/g, '')
+      // Create the data that was signed (attestation without signature)
+      const dataToVerify = {
+        h: attestationData.h,
+        t: attestationData.t,
+        i: attestationData.i,
+        s: attestationData.s,
+        e: attestationData.e,
+        ...(attestationData.u && { u: attestationData.u }),
+      }
 
-      const publicKeyBytes = Uint8Array.from(atob(publicKeyData), c => c.charCodeAt(0))
+      // Convert to canonical JSON string for verification
+      const dataString = JSON.stringify(dataToVerify)
+      const dataBytes = new TextEncoder().encode(dataString)
+
+      // Import the public key
+      const publicKeyPem = keyData.public_key
+      const publicKeyDer = pemToArrayBuffer(publicKeyPem)
       
-      // Import the public key for verification
       const publicKey = await crypto.subtle.importKey(
         'spki',
-        publicKeyBytes,
+        publicKeyDer,
         {
           name: 'Ed25519',
         },
         false,
-        ['verify'],
+        ['verify']
       )
 
-      // Convert signature from base64
-      const signatureBytes = Uint8Array.from(atob(attestationData.sig), c => c.charCodeAt(0))
+      // Decode the signature from base64
+      const signatureBytes = base64ToArrayBuffer(attestationData.sig)
 
       // Verify the signature
-      const signatureValid = await crypto.subtle.verify(
+      const isSignatureValid = await crypto.subtle.verify(
         'Ed25519',
         publicKey,
         signatureBytes,
-        dataBytes,
+        dataBytes
       )
 
-      console.log('✅ Signature verification completed:', { signatureValid })
+      console.log('📋 Signature verification result:', isSignatureValid)
 
-      const result: SignatureVerificationResult = {
-        isValid: signatureValid,
+      return Response.json({
+        isValid: isSignatureValid,
         publicKeyId: attestationData.s.k,
         timestamp: attestationData.t,
         identity: {
@@ -311,67 +245,62 @@ serve(async (req) => {
         },
         details: {
           keyFound: true,
-          signatureMatch: signatureValid,
+          signatureMatch: isSignatureValid,
           timestampValid: true,
         },
-      }
-
-      if (!signatureValid) {
-        result.error = 'Signature verification failed'
-      }
-
-      console.log('🎉 Signature verification completed successfully')
-
-      return new Response(
-        JSON.stringify(result),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        },
-      )
+      } as SignatureVerificationResult, {
+        headers: corsHeaders,
+      })
 
     } catch (cryptoError) {
-      console.error('❌ Cryptographic verification failed:', cryptoError)
-      
-      return new Response(
-        JSON.stringify({
-          isValid: false,
-          publicKeyId: attestationData.s.k,
-          timestamp: attestationData.t,
-          identity: {
-            provider: attestationData.i.p,
-            identifier: attestationData.i.id,
-          },
-          error: 'Cryptographic verification failed',
-          details: {
-            keyFound: true,
-            signatureMatch: false,
-            timestampValid: true,
-          },
-        } as SignatureVerificationResult),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      console.error('❌ Cryptographic verification error:', cryptoError)
+      return Response.json({
+        isValid: false,
+        publicKeyId: attestationData.s.k,
+        timestamp: attestationData.t,
+        identity: {
+          provider: attestationData.i.p,
+          identifier: attestationData.i.id,
         },
-      )
+        error: `Signature verification failed: ${cryptoError.message}`,
+        details: {
+          keyFound: true,
+          signatureMatch: false,
+          timestampValid: true,
+        },
+      } as SignatureVerificationResult, {
+        headers: corsHeaders,
+      })
     }
 
   } catch (error) {
-    console.error('💥 Error in verify-signature function:', error)
+    console.error('❌ Verification function error:', error)
     
-    const errorDetails = {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      timestamp: new Date().toISOString(),
-    }
-    
-    return new Response(
-      JSON.stringify({ 
-        error: 'Internal server error',
-        details: errorDetails.message,
-        timestamp: errorDetails.timestamp,
-      }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      },
-    )
+    return Response.json({
+      error: `Verification failed: ${error.message}`,
+    }, {
+      status: 500,
+      headers: corsHeaders,
+    })
   }
 })
+
+// Helper function to convert PEM to ArrayBuffer
+function pemToArrayBuffer(pem: string): ArrayBuffer {
+  const base64 = pem
+    .replace(/-----BEGIN PUBLIC KEY-----/, '')
+    .replace(/-----END PUBLIC KEY-----/, '')
+    .replace(/\s/g, '')
+  
+  return base64ToArrayBuffer(base64)
+}
+
+// Helper function to convert base64 to ArrayBuffer
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  const binaryString = atob(base64)
+  const bytes = new Uint8Array(binaryString.length)
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i)
+  }
+  return bytes.buffer
+}

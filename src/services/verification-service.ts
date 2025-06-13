@@ -119,7 +119,7 @@ export class VerificationService {
   }
 
   /**
-   * Verify document integrity against attestation data with online signature verification
+   * Verify document integrity against attestation data with proper verification order
    * 
    * @param document - The document file to verify
    * @param attestationData - The attestation data from QR code
@@ -343,7 +343,8 @@ export class VerificationService {
   }
 
   /**
-   * Verify document integrity against attestation data with online signature verification
+   * Verify document integrity against attestation data with proper verification order
+   * CORRECTED ORDER: Hash verification first, then signature verification
    * 
    * @param document - The document file to verify
    * @param attestationData - The attestation data from QR code
@@ -354,41 +355,10 @@ export class VerificationService {
     attestationData: AttestationData,
   ): Promise<VerificationResult> {
     try {
-      console.log('🔍 Starting document verification with signature check...')
+      console.log('🔍 Starting document verification with corrected order...')
 
-      // First, verify the signature online
-      let signatureVerification: SignatureVerificationResult | undefined
-      let signatureValid = false
-
-      if (attestationData.sig) {
-        console.log('🔐 Verifying signature online...')
-        signatureVerification = await signatureVerificationService.verifySignature(attestationData)
-        signatureValid = signatureVerification.isValid
-        
-        console.log('📋 Signature verification result:', {
-          isValid: signatureValid,
-          error: signatureVerification.error,
-        })
-      } else {
-        console.log('⚠️ No signature found in attestation data')
-      }
-
-      // If signature verification fails, return early
-      if (!signatureValid) {
-        return {
-          isValid: false,
-          status: attestationData.sig ? 'error_signature_invalid' : 'error_signature_missing',
-          details: {
-            cryptographicMatch: false,
-            perceptualMatch: false,
-            documentType: document.type,
-            signatureValid: false,
-            signatureVerification,
-          },
-        }
-      }
-
-      console.log('✅ Signature verified, proceeding with document hash verification...')
+      // STEP 1: Verify document hashes first (client-side verification)
+      console.log('📊 Step 1: Verifying document hashes...')
 
       // Extract exclusion zone from attestation data
       const exclusionZone = attestationBuilder.extractExclusionZone(attestationData)
@@ -416,7 +386,65 @@ export class VerificationService {
       )
       const perceptualMatch = pHashMatch || dHashMatch
 
-      // Determine verification result
+      console.log('📊 Hash verification results:', {
+        cryptographicMatch,
+        perceptualMatch,
+        pHashMatch,
+        dHashMatch,
+      })
+
+      // If document hashes don't match, return early (no need to verify signature)
+      if (!cryptographicMatch && !perceptualMatch) {
+        console.log('❌ Document hashes do not match - document has been modified')
+        return {
+          isValid: false,
+          status: 'modified',
+          details: {
+            cryptographicMatch: false,
+            perceptualMatch: false,
+            documentType: document.type,
+            signatureValid: false, // We know it's invalid because document was modified
+          },
+        }
+      }
+
+      console.log('✅ Document hashes verified, proceeding with signature verification...')
+
+      // STEP 2: Verify the signature online (only if hashes match)
+      console.log('🔐 Step 2: Verifying signature online...')
+
+      let signatureVerification: SignatureVerificationResult | undefined
+      let signatureValid = false
+
+      if (attestationData.sig) {
+        console.log('🔐 Verifying signature online...')
+        signatureVerification = await signatureVerificationService.verifySignature(attestationData)
+        signatureValid = signatureVerification.isValid
+        
+        console.log('📋 Signature verification result:', {
+          isValid: signatureValid,
+          error: signatureVerification.error,
+        })
+      } else {
+        console.log('⚠️ No signature found in attestation data')
+      }
+
+      // If signature verification fails, return signature error
+      if (!signatureValid) {
+        return {
+          isValid: false,
+          status: attestationData.sig ? 'error_signature_invalid' : 'error_signature_missing',
+          details: {
+            cryptographicMatch,
+            perceptualMatch,
+            documentType: document.type,
+            signatureValid: false,
+            signatureVerification,
+          },
+        }
+      }
+
+      // STEP 3: Determine final verification result
       let status: VerificationStatus
       let isValid: boolean
 
@@ -427,11 +455,12 @@ export class VerificationService {
         isValid = true
         status = 'verified_visual'
       } else {
+        // This shouldn't happen since we checked hashes earlier, but just in case
         isValid = false
         status = 'modified'
       }
 
-      console.log('📊 Verification completed:', {
+      console.log('📊 Final verification completed:', {
         signatureValid,
         cryptographicMatch,
         perceptualMatch,
