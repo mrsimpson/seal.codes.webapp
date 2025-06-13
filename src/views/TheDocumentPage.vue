@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useDocumentStore } from '../stores/documentStore'
@@ -23,23 +23,11 @@ const isProcessing = ref(false)
 const qrPosition = ref<QRCodeUIPosition>({ x: 50, y: 50 })
 const qrSize = ref(20) // Default 20% of container width (between min 15% and max 35%)
 
-// Track if we've already attempted sealing to prevent multiple attempts
-const sealingAttempted = ref(false)
-
 const handleDocumentLoaded = async (file: File) => {
   console.log('🔥 Document loaded in TheDocumentPage:', file.name, file.type)
   try {
     await documentStore.setDocument(file)
     console.log('✅ Document successfully set in store')
-    
-    // Reset sealing attempt flag when new document is loaded
-    sealingAttempted.value = false
-    
-    // If user is already authenticated, trigger sealing immediately
-    if (documentStore.isAuthenticated) {
-      console.log('🔐 User already authenticated, triggering sealing...')
-      await triggerSealing()
-    }
   } catch (err) {
     console.error('❌ Error setting document in store:', err)
     
@@ -55,7 +43,8 @@ const handleSocialAuth = async (provider: string) => {
   isProcessing.value = true
   try {
     await documentStore.authenticateWith(provider)
-    // Note: The actual sealing will be triggered by the watcher when auth completes
+    // Note: Don't seal document here - it will be handled by the watcher
+    // after the user returns from OAuth redirect and is authenticated
   } catch (err) {
     console.error('Authentication error:', err)
     
@@ -73,72 +62,34 @@ const handleSocialAuth = async (provider: string) => {
   }
 }
 
-const triggerSealing = async () => {
-  if (sealingAttempted.value) {
-    console.log('🔒 Sealing already attempted, skipping...')
-    return
-  }
-  
-  if (!documentStore.hasDocument || !documentStore.isAuthenticated) {
-    console.log('🔒 Cannot seal: missing document or authentication')
-    return
-  }
-  
-  sealingAttempted.value = true
-  
-  try {
-    isProcessing.value = true
-    success('Sealing your document...')
-    
-    console.log('🔒 Starting document sealing process...')
-    await documentStore.sealDocument(qrPosition.value, qrSize.value)
-    
-    success('Document sealed successfully!')
-    
-    console.log('🔒 Document sealed, navigating to sealed page...')
-    router.push(`/sealed/${documentStore.documentId}`)
-  } catch (err) {
-    console.error('Error sealing document:', err)
-    
-    // Reset the flag so user can try again
-    sealingAttempted.value = false
-    
-    if (err instanceof CodedError) {
-      error(t(`errors.${err.code}`))
-    } else {
-      error(t('errors.document_seal_failed'))
-    }
-  } finally {
-    isProcessing.value = false
-  }
-}
-
 // Watch for both document and authentication to be ready, then seal and navigate
 watch(
   () => [documentStore.hasDocument, documentStore.isAuthenticated],
   async ([hasDocument, isAuthenticated]) => {
-    console.log('🔍 Watcher triggered:', { hasDocument, isAuthenticated, sealingAttempted: sealingAttempted.value })
-    
-    if (hasDocument && isAuthenticated && !sealingAttempted.value) {
-      console.log('🔒 Both document and auth ready, triggering sealing...')
-      await triggerSealing()
+    if (hasDocument && isAuthenticated) {
+      try {
+        isProcessing.value = true
+        success('Sealing your document...')
+        
+        await documentStore.sealDocument(qrPosition.value, qrSize.value)
+        
+        success('Document sealed successfully!')
+        
+        router.push(`/sealed/${documentStore.documentId}`)
+      } catch (err) {
+        console.error('Error sealing document:', err)
+        
+        if (err instanceof CodedError) {
+          error(t(`errors.${err.code}`))
+        } else {
+          error(t('errors.document_seal_failed'))
+        }
+      } finally {
+        isProcessing.value = false
+      }
     }
-  },
-  { immediate: true } // Check immediately in case both are already ready
-)
-
-// Check on mount if both document and auth are ready (e.g., after OAuth redirect)
-onMounted(async () => {
-  console.log('🔄 TheDocumentPage mounted, checking readiness...')
-  console.log('📄 Has document:', documentStore.hasDocument)
-  console.log('🔐 Is authenticated:', documentStore.isAuthenticated)
-  
-  // If both are ready on mount (e.g., after OAuth redirect), trigger sealing
-  if (documentStore.hasDocument && documentStore.isAuthenticated && !sealingAttempted.value) {
-    console.log('🔒 Both ready on mount, triggering sealing...')
-    await triggerSealing()
   }
-})
+)
 
 // Calculate safe margins based on QR code size using the UI calculator
 const cornerPositions = computed(() => {
@@ -156,7 +107,6 @@ const setCornerPosition = (
 
 const chooseNewDocument = () => {
   documentStore.reset()
-  sealingAttempted.value = false
 }
 
 const updateQrPosition = (position: { x: number; y: number }) => {
@@ -232,7 +182,7 @@ const updateQrSize = (size: number) => {
               </div>
 
               <!-- Social Authentication Section -->
-              <div v-if="!documentStore.isAuthenticated">
+              <div>
                 <h3 class="text-xl font-medium mb-3">
                   {{ t("document.controls.authenticateWith") }}
                 </h3>
@@ -240,23 +190,6 @@ const updateQrSize = (size: number) => {
                   :is-processing="isProcessing"
                   @provider-selected="handleSocialAuth"
                 />
-              </div>
-              
-              <!-- Processing State -->
-              <div v-else-if="isProcessing" class="text-center py-8">
-                <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500 mx-auto mb-4" />
-                <p class="text-gray-600">Processing your document...</p>
-              </div>
-              
-              <!-- Authenticated State -->
-              <div v-else class="text-center py-8">
-                <div class="text-green-600 mb-4">
-                  <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                  </svg>
-                </div>
-                <p class="text-gray-600">Authenticated as {{ documentStore.userName }}</p>
-                <p class="text-sm text-gray-500 mt-2">Your document will be sealed automatically...</p>
               </div>
             </div>
           </div>
