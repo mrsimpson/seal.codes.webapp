@@ -36,10 +36,18 @@ export class AuthService {
     try {
       console.log(`🔐 Initiating OAuth sign-in with ${provider}`)
       
+      // Determine redirect URL based on current location
+      const currentPath = window.location.pathname
+      const redirectTo = currentPath === '/' ? 
+        `${window.location.origin}/document` : 
+        `${window.location.origin}${currentPath}`
+      
+      console.log(`🔗 OAuth redirect URL: ${redirectTo}`)
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: provider as Provider,
         options: {
-          redirectTo: `${window.location.origin}/document`,
+          redirectTo,
         },
       })
 
