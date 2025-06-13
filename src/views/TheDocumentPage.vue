@@ -4,7 +4,6 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useDocumentStore } from '../stores/documentStore'
 import { useToast } from '@/composables/useToast'
-import { qrCodeUICalculator } from '@/services/qrcode-ui-calculator'
 import { OAuthProviderError, CodedError } from '@/types/errors'
 import DocumentDropzone from '../components/document/DocumentDropzone.vue'
 import DocumentPreview from '../components/document/DocumentPreview.vue'
@@ -16,12 +15,21 @@ import { QRCodeUIPosition } from '@/types/qrcode'
 const router = useRouter()
 const { t } = useI18n()
 const documentStore = useDocumentStore()
-const { success, error } = useToast()
+const { success, error, info } = useToast()
 
 const isDocumentLoaded = computed(() => documentStore.hasDocument)
 const isProcessing = ref(false)
-const qrPosition = ref<QRCodeUIPosition>({ x: 50, y: 50 })
-const qrSize = ref(20) // Default 20% of container width (between min 15% and max 35%)
+
+// Use QR position and size from the store (persisted through OAuth)
+const qrPosition = computed({
+  get: () => documentStore.qrPosition,
+  set: (value: QRCodeUIPosition) => documentStore.updateQRPosition(value)
+})
+
+const qrSize = computed({
+  get: () => documentStore.qrSizePercent,
+  set: (value: number) => documentStore.updateQRSize(value)
+})
 
 const handleDocumentLoaded = async (file: File) => {
   console.log('🔥 Document loaded in TheDocumentPage:', file.name, file.type)
@@ -40,11 +48,21 @@ const handleDocumentLoaded = async (file: File) => {
 }
 
 const handleSocialAuth = async (provider: string) => {
+  if (!documentStore.hasDocument) {
+    error(t('Please load a document first'))
+    return
+  }
+
   isProcessing.value = true
   try {
+    info(t('Redirecting to authentication...'))
+    
+    // This will save the current state and redirect to OAuth
     await documentStore.authenticateWith(provider)
-    // Note: Don't seal document here - it will be handled by the watcher
-    // after the user returns from OAuth redirect and is authenticated
+    
+    // Note: User will be redirected to OAuth provider
+    // When they return, the auth state change will trigger automatic sealing
+    
   } catch (err) {
     console.error('Authentication error:', err)
     
@@ -62,59 +80,40 @@ const handleSocialAuth = async (provider: string) => {
   }
 }
 
-// Watch for both document and authentication to be ready, then seal and navigate
+// Watch for successful authentication and automatic sealing
 watch(
-  () => [documentStore.hasDocument, documentStore.isAuthenticated],
-  async ([hasDocument, isAuthenticated]) => {
-    if (hasDocument && isAuthenticated) {
-      try {
-        isProcessing.value = true
-        success('Sealing your document...')
-        
-        await documentStore.sealDocument(qrPosition.value, qrSize.value)
-        
-        success('Document sealed successfully!')
-        
-        router.push(`/sealed/${documentStore.documentId}`)
-      } catch (err) {
-        console.error('Error sealing document:', err)
-        
-        if (err instanceof CodedError) {
-          error(t(`errors.${err.code}`))
-        } else {
-          error(t('errors.document_seal_failed'))
-        }
-      } finally {
-        isProcessing.value = false
-      }
+  () => [documentStore.isAuthenticated, documentStore.documentId],
+  async ([isAuthenticated, documentId]) => {
+    if (isAuthenticated && documentId) {
+      // Document was sealed successfully after authentication
+      success(t('Document sealed successfully!'))
+      
+      // Navigate to the sealed document page
+      router.push(`/sealed/${documentId}`)
     }
   }
 )
 
-// Calculate safe margins based on QR code size using the UI calculator
-const cornerPositions = computed(() => {
-  return qrCodeUICalculator.getCornerPositions(qrSize.value)
-})
-
-const setCornerPosition = (
-  corner: 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight',
-) => {
-  const position = cornerPositions.value[corner]
-  if (position) {
-    qrPosition.value = position
+// Watch for sealing errors
+watch(
+  () => documentStore.authError,
+  (authError) => {
+    if (authError) {
+      error(authError)
+    }
   }
-}
+)
 
 const chooseNewDocument = () => {
   documentStore.reset()
 }
 
 const updateQrPosition = (position: { x: number; y: number }) => {
-  qrPosition.value = position
+  documentStore.updateQRPosition(position)
 }
 
 const updateQrSize = (size: number) => {
-  qrSize.value = size
+  documentStore.updateQRSize(size)
 }
 </script>
 
@@ -160,32 +159,35 @@ const updateQrSize = (size: number) => {
                 >
                   {{ t("document.controls.chooseAnother") }}
                 </BaseButton>
+              </div>
 
-                <div class="flex gap-2">
-                  <button
-                    v-for="(position, key) in {
-                      topLeft: '↖',
-                      topRight: '↗',
-                      bottomLeft: '↙',
-                      bottomRight: '↘',
-                    }"
-                    :key="key"
-                    class="w-12 h-12 md:w-10 md:h-10 bg-white rounded-lg shadow-sm 
-                           hover:bg-gray-50 active:bg-gray-100 flex items-center justify-center 
-                           border border-gray-200 transition-colors touch-manipulation"
-                    :title="t(`document.preview.corners.${key}`)"
-                    @click="setCornerPosition(key as any)"
-                  >
-                    {{ position }}
-                  </button>
+              <!-- Authentication Status -->
+              <div v-if="documentStore.isAuthenticated" class="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                  </div>
+                  <div>
+                    <p class="font-medium text-green-800">
+                      Authenticated as {{ documentStore.userName }}
+                    </p>
+                    <p class="text-sm text-green-600">
+                      via {{ documentStore.authProvider }}
+                    </p>
+                  </div>
                 </div>
               </div>
 
               <!-- Social Authentication Section -->
-              <div>
+              <div v-else>
                 <h3 class="text-xl font-medium mb-3">
                   {{ t("document.controls.authenticateWith") }}
                 </h3>
+                <p class="text-gray-600 mb-4">
+                  Choose how you want to authenticate your identity for this seal:
+                </p>
                 <SocialAuthSelector
                   :is-processing="isProcessing"
                   @provider-selected="handleSocialAuth"

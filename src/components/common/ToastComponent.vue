@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { CheckCircle, XCircle, AlertCircle, Info, X } from 'lucide-vue-next'
+import { useToast } from '@/composables/useToast'
 
 interface Props {
   type: 'success' | 'error' | 'warning' | 'info'
   title?: string
   message: string
-  onClose?: () => void
+  toastId: string
 }
 
 const props = defineProps<Props>()
+const { removeToast } = useToast()
 
 const icon = computed(() => {
   switch (props.type) {
@@ -60,6 +62,19 @@ const colorClasses = computed(() => {
 
   return baseClasses[props.type]
 })
+
+const handleClose = () => {
+  removeToast(props.toastId)
+}
+
+// Auto-close after 5 seconds for non-error toasts
+onMounted(() => {
+  if (props.type !== 'error') {
+    setTimeout(() => {
+      removeToast(props.toastId)
+    }, 5000)
+  }
+})
 </script>
 
 <template>
@@ -92,8 +107,7 @@ const colorClasses = computed(() => {
         </p>
       </div>
       <button
-        v-if="onClose"
-        @click="onClose"
+        @click="handleClose"
         class="flex-shrink-0 ml-2 p-1 rounded-md hover:bg-black hover:bg-opacity-10 transition-colors"
         :class="colorClasses.icon"
       >

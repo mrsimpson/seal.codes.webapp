@@ -28,6 +28,14 @@ export const useDocumentStore = defineStore('document', () => {
   const isAuthenticating = ref(false)
   const authError = ref<string | null>(null)
   
+  // QR positioning state - persisted through OAuth flow
+  const qrPosition = ref<QRCodeUIPosition>({ x: 85, y: 15 })
+  const qrSizePercent = ref<number>(20)
+  
+  // OAuth flow state
+  const pendingAuthentication = ref<string | null>(null) // Provider being authenticated
+  const shouldSealAfterAuth = ref<boolean>(false) // Flag to seal after auth
+  
   // Format conversion state
   const formatConversionResult = ref<FormatConversionResult | null>(null)
   const showFormatConversionNotification = ref(false)
@@ -92,22 +100,49 @@ export const useDocumentStore = defineStore('document', () => {
     }
   }
   
+  const updateQRPosition = (position: QRCodeUIPosition) => {
+    qrPosition.value = position
+    console.log('📍 QR position updated:', position)
+  }
+  
+  const updateQRSize = (size: number) => {
+    qrSizePercent.value = size
+    console.log('📏 QR size updated:', size)
+  }
+  
   const authenticateWith = async (provider: string) => {
-    console.log('🔐 Authenticating with provider:', provider)
+    console.log('🔐 Starting authentication with provider:', provider)
     
     isAuthenticating.value = true
     authError.value = null
+    pendingAuthentication.value = provider
+    shouldSealAfterAuth.value = hasDocument.value // Only seal if we have a document
     
     try {
-      // Initiate OAuth sign-in - this will throw coded errors
+      // Save current state to localStorage for persistence through OAuth redirect
+      if (hasDocument.value) {
+        const stateToSave = {
+          qrPosition: qrPosition.value,
+          qrSizePercent: qrSizePercent.value,
+          shouldSeal: true,
+          timestamp: Date.now(),
+        }
+        localStorage.setItem('seal-codes-oauth-state', JSON.stringify(stateToSave))
+        console.log('💾 Saved OAuth state to localStorage:', stateToSave)
+      }
+      
+      // Initiate OAuth sign-in - this will redirect the user
       await authService.signInWithProvider(provider)
       
-      // OAuth sign-in initiated - the user will be redirected
-      // The actual authentication completion will be handled by onAuthStateChange
-      console.log('✅ OAuth sign-in initiated')
+      console.log('✅ OAuth sign-in initiated, user will be redirected')
       
     } catch (error) {
       console.error('❌ Authentication failed:', error)
+      
+      // Clean up state on error
+      pendingAuthentication.value = null
+      shouldSealAfterAuth.value = false
+      localStorage.removeItem('seal-codes-oauth-state')
       
       // Re-throw coded errors for the component to handle
       if (error instanceof OAuthProviderError || error instanceof CodedError) {
@@ -128,6 +163,53 @@ export const useDocumentStore = defineStore('document', () => {
     } finally {
       isAuthenticating.value = false
     }
+  }
+  
+  const handleAuthenticationSuccess = async () => {
+    console.log('🎉 Authentication successful, checking for pending seal operation...')
+    
+    try {
+      // Check if we have saved OAuth state
+      const savedStateJson = localStorage.getItem('seal-codes-oauth-state')
+      if (savedStateJson) {
+        const savedState = JSON.parse(savedStateJson)
+        console.log('📥 Restored OAuth state from localStorage:', savedState)
+        
+        // Restore QR positioning
+        if (savedState.qrPosition) {
+          qrPosition.value = savedState.qrPosition
+        }
+        if (savedState.qrSizePercent) {
+          qrSizePercent.value = savedState.qrSizePercent
+        }
+        
+        // Check if we should seal the document
+        if (savedState.shouldSeal && hasDocument.value && isAuthenticated.value) {
+          console.log('🔒 Auto-sealing document after authentication...')
+          
+          // Clean up saved state
+          localStorage.removeItem('seal-codes-oauth-state')
+          
+          // Trigger document sealing
+          const documentId = await sealDocument(qrPosition.value, qrSizePercent.value)
+          return documentId
+        }
+        
+        // Clean up saved state even if we don't seal
+        localStorage.removeItem('seal-codes-oauth-state')
+      }
+      
+      // Reset pending state
+      pendingAuthentication.value = null
+      shouldSealAfterAuth.value = false
+      
+    } catch (error) {
+      console.error('❌ Error handling authentication success:', error)
+      localStorage.removeItem('seal-codes-oauth-state')
+      throw error
+    }
+    
+    return null
   }
   
   const sealDocument = async (position: QRCodeUIPosition, sizePercent: number = 20) => {
@@ -234,13 +316,19 @@ export const useDocumentStore = defineStore('document', () => {
       if (session) {
         currentUser.value = session.user
         console.log('✅ User already authenticated:', session.user.email)
+        
+        // Check if we need to handle post-OAuth sealing
+        await handleAuthenticationSuccess()
       }
 
       // Listen for auth state changes
-      authService.onAuthStateChange((session) => {
+      authService.onAuthStateChange(async (session) => {
         if (session) {
           currentUser.value = session.user
           console.log('✅ User authenticated:', session.user.email)
+          
+          // Handle post-OAuth sealing
+          await handleAuthenticationSuccess()
         } else {
           currentUser.value = null
           console.log('🔐 User signed out')
@@ -512,6 +600,14 @@ export const useDocumentStore = defineStore('document', () => {
     showFormatConversionNotification.value = false
     authError.value = null
     
+    // Reset QR positioning to defaults
+    qrPosition.value = { x: 85, y: 15 }
+    qrSizePercent.value = 20
+    
+    // Reset OAuth flow state
+    pendingAuthentication.value = null
+    shouldSealAfterAuth.value = false
+    
     console.log('✅ Document store reset completed')
   }
   
@@ -527,6 +623,10 @@ export const useDocumentStore = defineStore('document', () => {
     authError,
     formatConversionResult,
     showFormatConversionNotification,
+    qrPosition,
+    qrSizePercent,
+    pendingAuthentication,
+    shouldSealAfterAuth,
     
     // Getters
     hasDocument,
@@ -539,7 +639,10 @@ export const useDocumentStore = defineStore('document', () => {
     
     // Actions
     setDocument,
+    updateQRPosition,
+    updateQRSize,
     authenticateWith,
+    handleAuthenticationSuccess,
     sealDocument,
     downloadSealedDocument,
     initializeAuth,
