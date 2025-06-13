@@ -6,7 +6,9 @@
 import { encode, decode } from 'cbor-x'
 import { documentHashService } from './document-hash-service'
 import { attestationBuilder } from './attestation-builder'
+import { signatureVerificationService } from './signature-verification-service'
 import type { AttestationData, QRCodeExclusionZone } from '@/types/qrcode'
+import type { SignatureVerificationResult } from './signature-verification-service'
 import { debugVerification } from './debug-verification'
 
 export type VerificationStatus =
@@ -16,6 +18,8 @@ export type VerificationStatus =
   | 'error_hash_mismatch'      // Hash doesn't match
   | 'error_invalid_format'     // Invalid document format
   | 'error_processing'         // Error during processing
+  | 'error_signature_invalid'  // Signature verification failed
+  | 'error_signature_missing'  // No signature found
 
 /**
  * Verification result for document integrity check
@@ -30,6 +34,8 @@ export interface VerificationResult {
     cryptographicMatch: boolean;
     perceptualMatch: boolean;
     documentType: string;
+    signatureValid?: boolean;
+    signatureVerification?: SignatureVerificationResult;
   };
 }
 
@@ -85,6 +91,8 @@ interface UltraCompactData {
   s: string;
   /** Exclusion zone [x,y,w,h,f] - required for hash verification */
   e: (number | string)[];
+  /** Signature (base64) */
+  sig?: string;
   /** User URL (optional) */
   u?: string;
 }
@@ -111,7 +119,7 @@ export class VerificationService {
   }
 
   /**
-   * Verify document integrity against attestation data
+   * Verify document integrity against attestation data with online signature verification
    * 
    * @param document - The document file to verify
    * @param attestationData - The attestation data from QR code
@@ -199,6 +207,11 @@ export class VerificationService {
       ],
     }
 
+    // Include signature if present
+    if (attestationData.sig) {
+      compact.sig = attestationData.sig
+    }
+
     // Include full user URL if present - PRESERVE FULL URL
     if (attestationData.u) {
       compact.u = attestationData.u
@@ -244,6 +257,11 @@ export class VerificationService {
         h: compactData.e[3] as number,
         f: compactData.e[4] as string, // Use the original fill color for hash consistency
       },
+    }
+
+    // Add signature if present
+    if (compactData.sig) {
+      expanded.sig = compactData.sig
     }
 
     // Add user URL if present
@@ -325,7 +343,7 @@ export class VerificationService {
   }
 
   /**
-   * Verify document integrity against attestation data
+   * Verify document integrity against attestation data with online signature verification
    * 
    * @param document - The document file to verify
    * @param attestationData - The attestation data from QR code
@@ -336,6 +354,42 @@ export class VerificationService {
     attestationData: AttestationData,
   ): Promise<VerificationResult> {
     try {
+      console.log('🔍 Starting document verification with signature check...')
+
+      // First, verify the signature online
+      let signatureVerification: SignatureVerificationResult | undefined
+      let signatureValid = false
+
+      if (attestationData.sig) {
+        console.log('🔐 Verifying signature online...')
+        signatureVerification = await signatureVerificationService.verifySignature(attestationData)
+        signatureValid = signatureVerification.isValid
+        
+        console.log('📋 Signature verification result:', {
+          isValid: signatureValid,
+          error: signatureVerification.error,
+        })
+      } else {
+        console.log('⚠️ No signature found in attestation data')
+      }
+
+      // If signature verification fails, return early
+      if (!signatureValid) {
+        return {
+          isValid: false,
+          status: attestationData.sig ? 'error_signature_invalid' : 'error_signature_missing',
+          details: {
+            cryptographicMatch: false,
+            perceptualMatch: false,
+            documentType: document.type,
+            signatureValid: false,
+            signatureVerification,
+          },
+        }
+      }
+
+      console.log('✅ Signature verified, proceeding with document hash verification...')
+
       // Extract exclusion zone from attestation data
       const exclusionZone = attestationBuilder.extractExclusionZone(attestationData)
 
@@ -377,6 +431,13 @@ export class VerificationService {
         status = 'modified'
       }
 
+      console.log('📊 Verification completed:', {
+        signatureValid,
+        cryptographicMatch,
+        perceptualMatch,
+        finalStatus: status,
+      })
+
       return {
         isValid,
         status,
@@ -384,6 +445,8 @@ export class VerificationService {
           cryptographicMatch,
           perceptualMatch,
           documentType: document.type,
+          signatureValid: true,
+          signatureVerification,
         },
       }
     } catch (error) {
@@ -395,6 +458,7 @@ export class VerificationService {
           cryptographicMatch: false,
           perceptualMatch: false,
           documentType: document.type,
+          signatureValid: false,
         },
       }
     }
