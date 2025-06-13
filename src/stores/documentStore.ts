@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { PDFDocument } from 'pdf-lib'
 import { qrCodeUICalculator } from '@/services/qrcode-ui-calculator'
 import { attestationBuilder } from '@/services/attestation-builder'
@@ -17,7 +17,7 @@ const generateUniqueId = () => {
 }
 
 // Helper functions for document persistence
-const saveDocumentToStorage = async (file: File): Promise<string> => {
+const saveDocumentToStorage = async (file: File): Promise<void> => {
   try {
     // Convert file to base64 for storage
     const arrayBuffer = await file.arrayBuffer()
@@ -34,10 +34,9 @@ const saveDocumentToStorage = async (file: File): Promise<string> => {
     
     localStorage.setItem('seal-codes-document-data', JSON.stringify(documentData))
     console.log('💾 Document saved to localStorage:', file.name, 'Size:', file.size)
-    return base64
   } catch (error) {
     console.error('❌ Failed to save document to storage:', error)
-    throw error
+    // Don't throw - this is not critical for the main flow
   }
 }
 
@@ -109,6 +108,9 @@ export const useDocumentStore = defineStore('document', () => {
   const formatConversionResult = ref<FormatConversionResult | null>(null)
   const showFormatConversionNotification = ref(false)
   
+  // Store initialization flag
+  const isInitialized = ref(false)
+  
   // Getters
   const hasDocument = computed(() => uploadedDocument.value !== null)
   const fileName = computed(() => uploadedDocument.value?.name || '')
@@ -129,6 +131,65 @@ export const useDocumentStore = defineStore('document', () => {
       return undefined
     }
   })
+  
+  // Initialize store state from localStorage if needed
+  const initializeStore = () => {
+    if (isInitialized.value) {
+      return
+    }
+    
+    console.log('🔄 Initializing document store...')
+    
+    // Try to restore document from localStorage
+    const restoredDocument = loadDocumentFromStorage()
+    if (restoredDocument) {
+      console.log('📥 Restoring document from localStorage:', restoredDocument.name)
+      
+      uploadedDocument.value = restoredDocument
+      
+      // Determine document type
+      if (restoredDocument.type === 'application/pdf') {
+        documentType.value = 'pdf'
+      } else if (restoredDocument.type.startsWith('image/')) {
+        documentType.value = 'image'
+      }
+      
+      // Create preview URL
+      documentPreviewUrl.value = URL.createObjectURL(restoredDocument)
+      
+      console.log('✅ Document restored successfully')
+    }
+    
+    // Try to restore OAuth state
+    const savedStateJson = localStorage.getItem('seal-codes-oauth-state')
+    if (savedStateJson) {
+      try {
+        const savedState = JSON.parse(savedStateJson)
+        console.log('📥 Restoring OAuth state:', savedState)
+        
+        // Restore QR positioning
+        if (savedState.qrPosition) {
+          qrPosition.value = savedState.qrPosition
+        }
+        if (savedState.qrSizePercent) {
+          qrSizePercent.value = savedState.qrSizePercent
+        }
+        
+        // Set flags for post-auth processing
+        if (savedState.shouldSeal) {
+          shouldSealAfterAuth.value = true
+        }
+        
+        console.log('✅ OAuth state restored')
+      } catch (error) {
+        console.error('❌ Failed to restore OAuth state:', error)
+        localStorage.removeItem('seal-codes-oauth-state')
+      }
+    }
+    
+    isInitialized.value = true
+    console.log('✅ Store initialization completed')
+  }
   
   // Actions
   const setDocument = async (file: File) => {
@@ -253,6 +314,9 @@ export const useDocumentStore = defineStore('document', () => {
     isProcessingPostAuth.value = true
     
     try {
+      // Initialize store state if not already done
+      initializeStore()
+      
       // Check if we have saved OAuth state
       const savedStateJson = localStorage.getItem('seal-codes-oauth-state')
       if (savedStateJson) {
@@ -265,37 +329,6 @@ export const useDocumentStore = defineStore('document', () => {
         }
         if (savedState.qrSizePercent) {
           qrSizePercent.value = savedState.qrSizePercent
-        }
-        
-        // Try to restore the document if we don't have one
-        if (!hasDocument.value) {
-          console.log('📄 No document in memory, trying to restore from localStorage...')
-          const restoredDocument = loadDocumentFromStorage()
-          
-          if (restoredDocument) {
-            console.log('✅ Document restored from localStorage:', restoredDocument.name)
-            
-            // Set the document without saving it again to localStorage
-            uploadedDocument.value = restoredDocument
-            
-            // Determine document type
-            if (restoredDocument.type === 'application/pdf') {
-              documentType.value = 'pdf'
-            } else if (restoredDocument.type.startsWith('image/')) {
-              documentType.value = 'image'
-            }
-            
-            // Create a new preview URL
-            documentPreviewUrl.value = URL.createObjectURL(restoredDocument)
-            
-            console.log('✅ Document restored successfully:', {
-              name: restoredDocument.name,
-              type: documentType.value,
-              size: restoredDocument.size,
-            })
-          } else {
-            console.log('❌ Could not restore document from localStorage')
-          }
         }
         
         // Check if we should seal the document
@@ -443,6 +476,9 @@ export const useDocumentStore = defineStore('document', () => {
   // Initialize authentication state
   const initializeAuth = async () => {
     console.log('🔐 Initializing authentication state...')
+    
+    // Initialize store first
+    initializeStore()
     
     try {
       // Get current session
