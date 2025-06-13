@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useDocumentStore } from '../stores/documentStore'
@@ -35,8 +35,8 @@ const handleSocialAuth = async (provider: string) => {
   isProcessing.value = true
   try {
     await documentStore.authenticateWith(provider)
-    await documentStore.sealDocument(qrPosition.value, qrSize.value)
-    router.push(`/sealed/${documentStore.documentId}`)
+    // Note: Don't seal document here - it will be handled by the watcher
+    // after the user returns from OAuth redirect and is authenticated
   } catch (error) {
     console.error('Authentication error:', error)
     // TODO: Show error message to user
@@ -44,6 +44,22 @@ const handleSocialAuth = async (provider: string) => {
     isProcessing.value = false
   }
 }
+
+// Watch for both document and authentication to be ready, then seal and navigate
+watch(
+  () => [documentStore.hasDocument, documentStore.isAuthenticated],
+  async ([hasDocument, isAuthenticated]) => {
+    if (hasDocument && isAuthenticated) {
+      try {
+        await documentStore.sealDocument(qrPosition.value, qrSize.value)
+        router.push(`/sealed/${documentStore.documentId}`)
+      } catch (error) {
+        console.error('Error sealing document:', error)
+        // TODO: Show error message to user
+      }
+    }
+  }
+)
 
 // Calculate safe margins based on QR code size using the UI calculator
 const cornerPositions = computed(() => {
