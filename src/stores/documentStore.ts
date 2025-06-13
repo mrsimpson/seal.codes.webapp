@@ -8,6 +8,7 @@ import { documentHashService } from '@/services/document-hash-service'
 import { formatConversionService, type FormatConversionResult } from '@/services/format-conversion-service'
 import { authService, type AuthUser, OAuthProviderError } from '@/services/auth-service'
 import { signingService } from '@/services/signing-service'
+import { CodedError } from '@/types/errors'
 import type { QRCodeUIPosition, AttestationData } from '@/types/qrcode'
 
 // Unique ID generation for documents
@@ -56,26 +57,39 @@ export const useDocumentStore = defineStore('document', () => {
   const setDocument = async (file: File) => {
     console.log('📄 Setting document in store:', file.name, file.type)
     
-    uploadedDocument.value = file
-    
-    // Determine document type
-    if (file.type === 'application/pdf') {
-      documentType.value = 'pdf'
-    } else if (file.type.startsWith('image/')) {
-      documentType.value = 'image'
-    } else {
-      throw new Error('Unsupported file type')
+    try {
+      uploadedDocument.value = file
+      
+      // Determine document type
+      if (file.type === 'application/pdf') {
+        documentType.value = 'pdf'
+      } else if (file.type.startsWith('image/')) {
+        documentType.value = 'image'
+      } else {
+        throw new CodedError('unsupported_format', 'Unsupported file type')
+      }
+      
+      // Check file size (10MB limit)
+      const maxSize = 10 * 1024 * 1024
+      if (file.size > maxSize) {
+        throw new CodedError('file_too_large', 'File is too large')
+      }
+      
+      // Create a preview URL
+      documentPreviewUrl.value = URL.createObjectURL(file)
+      
+      console.log('✅ Document set successfully:', {
+        name: file.name,
+        type: documentType.value,
+        size: file.size,
+        previewUrl: documentPreviewUrl.value,
+      })
+    } catch (error) {
+      if (error instanceof CodedError) {
+        throw error
+      }
+      throw new CodedError('document_load_failed', 'Failed to load document')
     }
-    
-    // Create a preview URL
-    documentPreviewUrl.value = URL.createObjectURL(file)
-    
-    console.log('✅ Document set successfully:', {
-      name: file.name,
-      type: documentType.value,
-      size: file.size,
-      previewUrl: documentPreviewUrl.value,
-    })
   }
   
   const authenticateWith = async (provider: string) => {
@@ -85,19 +99,8 @@ export const useDocumentStore = defineStore('document', () => {
     authError.value = null
     
     try {
-      // Initiate OAuth sign-in
-      const { error } = await authService.signInWithProvider(provider)
-      
-      if (error) {
-        // Check if this is a provider configuration error
-        if (error instanceof OAuthProviderError && error.isConfigurationError) {
-          // This will be handled by the component to show a toast
-          throw error
-        }
-        
-        authError.value = error.message
-        throw new Error(error.message)
-      }
+      // Initiate OAuth sign-in - this will throw coded errors
+      await authService.signInWithProvider(provider)
       
       // OAuth sign-in initiated - the user will be redirected
       // The actual authentication completion will be handled by onAuthStateChange
@@ -106,13 +109,22 @@ export const useDocumentStore = defineStore('document', () => {
     } catch (error) {
       console.error('❌ Authentication failed:', error)
       
-      // Re-throw OAuthProviderError so the component can handle it
-      if (error instanceof OAuthProviderError) {
+      // Re-throw coded errors for the component to handle
+      if (error instanceof OAuthProviderError || error instanceof CodedError) {
         throw error
       }
       
+      // Handle Error objects with specific messages
+      if (error instanceof Error) {
+        const message = error.message
+        if (message === 'network_error' || message === 'authentication_failed' || message === 'unknown_error') {
+          throw new CodedError(message as any, message)
+        }
+      }
+      
+      // Default error
       authError.value = error instanceof Error ? error.message : 'Authentication failed'
-      throw error
+      throw new CodedError('authentication_failed', 'Authentication failed')
     } finally {
       isAuthenticating.value = false
     }
@@ -120,7 +132,7 @@ export const useDocumentStore = defineStore('document', () => {
   
   const sealDocument = async (position: QRCodeUIPosition, sizePercent: number = 20) => {
     if (!uploadedDocument.value || !isAuthenticated.value || !currentUser.value) {
-      throw new Error('Document or authentication missing')
+      throw new CodedError('document_seal_failed', 'Document or authentication missing')
     }
 
     console.log('🔒 Starting document sealing process...')
@@ -203,7 +215,12 @@ export const useDocumentStore = defineStore('document', () => {
       return documentId.value
     } catch (error) {
       console.error('❌ Error sealing document:', error)
-      throw new Error('Failed to seal document: ' + (error instanceof Error ? error.message : 'Unknown error'))
+      
+      if (error instanceof CodedError) {
+        throw error
+      }
+      
+      throw new CodedError('document_seal_failed', 'Failed to seal document')
     }
   }
   
@@ -250,14 +267,14 @@ export const useDocumentStore = defineStore('document', () => {
   // Helper function to get document dimensions
   const getDocumentDimensions = async (): Promise<{ width: number; height: number }> => {
     if (!uploadedDocument.value) {
-      throw new Error('No document available')
+      throw new CodedError('document_processing_failed', 'No document available')
     }
 
     if (documentType.value === 'image') {
       return new Promise((resolve, reject) => {
         const img = new Image()
         img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight })
-        img.onerror = () => reject(new Error('Failed to load image dimensions'))
+        img.onerror = () => reject(new CodedError('document_processing_failed', 'Failed to load image dimensions'))
         img.src = documentPreviewUrl.value
       })
     } else if (documentType.value === 'pdf') {
@@ -269,7 +286,7 @@ export const useDocumentStore = defineStore('document', () => {
       return { width, height }
     }
 
-    throw new Error('Unsupported document type')
+    throw new CodedError('unsupported_format', 'Unsupported document type')
   }
 
   // Helper function to build attestation data
@@ -382,7 +399,7 @@ export const useDocumentStore = defineStore('document', () => {
       const ctx = canvas.getContext('2d')
       
       if (!ctx) {
-        reject(new Error('Could not get canvas context'))
+        reject(new CodedError('document_processing_failed', 'Could not get canvas context'))
         return
       }
       
@@ -416,16 +433,16 @@ export const useDocumentStore = defineStore('document', () => {
               })
               resolve()
             } else {
-              reject(new Error('Failed to create image blob'))
+              reject(new CodedError('document_processing_failed', 'Failed to create image blob'))
             }
           }, outputFormat, quality)
         }
         
-        sealImg.onerror = () => reject(new Error('Failed to load seal image'))
+        sealImg.onerror = () => reject(new CodedError('document_processing_failed', 'Failed to load seal image'))
         sealImg.src = sealDataUrl
       }
       
-      img.onerror = () => reject(new Error('Failed to load original image'))
+      img.onerror = () => reject(new CodedError('document_processing_failed', 'Failed to load original image'))
       img.src = URL.createObjectURL(fileToSeal)
     })
   }

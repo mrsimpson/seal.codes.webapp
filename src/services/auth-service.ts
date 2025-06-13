@@ -6,6 +6,7 @@
 import { supabase } from './supabase-client'
 import type { User, Session, AuthError } from '@supabase/supabase-js'
 import type { Provider } from '@supabase/supabase-js'
+import { OAuthProviderError, type ErrorResult } from '@/types/errors'
 
 export interface AuthUser {
   id: string
@@ -22,20 +23,6 @@ export interface AuthSession {
 }
 
 /**
- * Custom error class for OAuth provider configuration issues
- */
-export class OAuthProviderError extends Error {
-  constructor(
-    message: string,
-    public provider: string,
-    public isConfigurationError: boolean = false
-  ) {
-    super(message)
-    this.name = 'OAuthProviderError'
-  }
-}
-
-/**
  * Authentication service class
  */
 export class AuthService {
@@ -43,9 +30,9 @@ export class AuthService {
    * Sign in with OAuth provider
    * 
    * @param provider - OAuth provider (google, github, etc.)
-   * @returns Promise that resolves when sign-in is initiated
+   * @returns Promise that resolves when sign-in is initiated or throws CodedError
    */
-  async signInWithProvider(provider: string): Promise<{ error?: AuthError | OAuthProviderError }> {
+  async signInWithProvider(provider: string): Promise<void> {
     try {
       console.log(`🔐 Initiating OAuth sign-in with ${provider}`)
       
@@ -62,42 +49,40 @@ export class AuthService {
         // Check if this is a provider configuration error
         if (error.message?.includes('provider is not enabled') || 
             error.message?.includes('Unsupported provider')) {
-          return { 
-            error: new OAuthProviderError(
-              `${provider} authentication is not yet configured. This app is in active development and more providers will be added soon.`,
-              provider,
-              true
-            )
-          }
+          throw new OAuthProviderError(provider, true)
         }
         
-        return { error }
+        // Network or other errors
+        if (error.message?.includes('network') || error.message?.includes('fetch')) {
+          throw new Error('network_error')
+        }
+        
+        // Generic authentication error
+        throw new Error('authentication_failed')
       }
 
       console.log(`✅ OAuth sign-in initiated for ${provider}`)
-      return {}
     } catch (error) {
       console.error('Unexpected error during OAuth sign-in:', error)
+      
+      // Re-throw our custom errors
+      if (error instanceof OAuthProviderError) {
+        throw error
+      }
       
       // Check if this looks like a configuration error
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       if (errorMessage.includes('provider') || errorMessage.includes('not enabled')) {
-        return { 
-          error: new OAuthProviderError(
-            `${provider} authentication is not yet configured. This app is in active development and more providers will be added soon.`,
-            provider,
-            true
-          )
-        }
+        throw new OAuthProviderError(provider, true)
       }
       
-      return { 
-        error: { 
-          message: errorMessage,
-          name: 'UnknownError',
-          status: 500
-        } as AuthError 
+      // Check for specific error codes
+      if (errorMessage === 'network_error' || errorMessage === 'authentication_failed') {
+        throw new Error(errorMessage)
       }
+      
+      // Default to unknown error
+      throw new Error('unknown_error')
     }
   }
 
@@ -257,3 +242,6 @@ export class AuthService {
  * Default auth service instance
  */
 export const authService = new AuthService()
+
+// Export the error classes for use in components
+export { OAuthProviderError }

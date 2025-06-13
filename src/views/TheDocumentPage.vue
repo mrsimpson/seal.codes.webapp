@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, defineAsyncComponent } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useDocumentStore } from '../stores/documentStore'
 import { qrCodeUICalculator } from '@/services/qrcode-ui-calculator'
-import { OAuthProviderError } from '@/services/auth-service'
-import { useMagicToast } from '@vue-equipment/magic-toast'
+import { OAuthProviderError, CodedError } from '@/types/errors'
+import { useMagicToast } from '@maas/vue-equipment/plugins'
 import DocumentDropzone from '../components/document/DocumentDropzone.vue'
 import DocumentPreview from '../components/document/DocumentPreview.vue'
 import SocialAuthSelector from '../components/auth/SocialAuthSelector.vue'
@@ -16,12 +16,28 @@ import { QRCodeUIPosition } from '@/types/qrcode'
 const router = useRouter()
 const { t } = useI18n()
 const documentStore = useDocumentStore()
-const { toast } = useMagicToast()
+const { add } = useMagicToast('document-toasts')
+
+// Toast component
+const ToastComponent = defineAsyncComponent(() => import('../components/common/ToastComponent.vue'))
 
 const isDocumentLoaded = computed(() => documentStore.hasDocument)
 const isProcessing = ref(false)
 const qrPosition = ref<QRCodeUIPosition>({ x: 50, y: 50 })
 const qrSize = ref(20) // Default 20% of container width (between min 15% and max 35%)
+
+// Helper function to show toast messages
+const showToast = (type: 'success' | 'error' | 'warning' | 'info', messageKey: string, params?: Record<string, any>) => {
+  const message = t(messageKey, params)
+  add({
+    component: ToastComponent,
+    props: {
+      type,
+      message,
+      onClose: () => {}, // MagicToast handles removal automatically
+    },
+  })
+}
 
 const handleDocumentLoaded = async (file: File) => {
   console.log('🔥 Document loaded in TheDocumentPage:', file.name, file.type)
@@ -30,10 +46,12 @@ const handleDocumentLoaded = async (file: File) => {
     console.log('✅ Document successfully set in store')
   } catch (error) {
     console.error('❌ Error setting document in store:', error)
-    toast.error('Failed to load document. Please try again.', {
-      duration: 3000,
-      position: 'top-center'
-    })
+    
+    if (error instanceof CodedError) {
+      showToast('error', `errors.${error.code}`)
+    } else {
+      showToast('error', 'errors.document_load_failed')
+    }
   }
 }
 
@@ -48,17 +66,12 @@ const handleSocialAuth = async (provider: string) => {
     
     // Handle OAuth provider configuration errors
     if (error instanceof OAuthProviderError && error.isConfigurationError) {
-      toast.error(error.message, {
-        duration: 5000,
-        position: 'top-center'
-      })
+      showToast('error', 'errors.provider_not_configured', { provider: error.provider })
+    } else if (error instanceof CodedError) {
+      showToast('error', `errors.${error.code}`)
     } else {
       // Handle other authentication errors
-      const errorMessage = error instanceof Error ? error.message : 'Authentication failed'
-      toast.error(errorMessage, {
-        duration: 3000,
-        position: 'top-center'
-      })
+      showToast('error', 'errors.authentication_failed')
     }
   } finally {
     isProcessing.value = false
@@ -72,26 +85,21 @@ watch(
     if (hasDocument && isAuthenticated) {
       try {
         isProcessing.value = true
-        toast.info('Sealing your document...', {
-          duration: 2000,
-          position: 'top-center'
-        })
+        showToast('info', 'Sealing your document...')
         
         await documentStore.sealDocument(qrPosition.value, qrSize.value)
         
-        toast.success('Document sealed successfully!', {
-          duration: 2000,
-          position: 'top-center'
-        })
+        showToast('success', 'Document sealed successfully!')
         
         router.push(`/sealed/${documentStore.documentId}`)
       } catch (error) {
         console.error('Error sealing document:', error)
-        const errorMessage = error instanceof Error ? error.message : 'Failed to seal document'
-        toast.error(errorMessage, {
-          duration: 5000,
-          position: 'top-center'
-        })
+        
+        if (error instanceof CodedError) {
+          showToast('error', `errors.${error.code}`)
+        } else {
+          showToast('error', 'errors.document_seal_failed')
+        }
       } finally {
         isProcessing.value = false
       }
@@ -128,6 +136,9 @@ const updateQrSize = (size: number) => {
 
 <template>
   <div class="min-h-screen bg-gray-50">
+    <!-- Toast Provider -->
+    <magic-toast-provider id="document-toasts" />
+    
     <div class="container mx-auto px-4 py-8">
       <div class="mb-6">
         <h1 class="text-3xl font-bold">
