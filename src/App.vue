@@ -5,6 +5,7 @@ import { useDocumentStore } from '@/stores/documentStore'
 import TheNavbar from './components/layout/TheNavbar.vue'
 import TheFooter from './components/layout/TheFooter.vue'
 import ToastContainer from './components/common/ToastContainer.vue'
+import HackathonBadge from './components/common/HackathonBadge.vue'
 
 const authStore = useAuthStore()
 const documentStore = useDocumentStore()
@@ -38,5 +39,11 @@ onMounted(async () => {
     
     <!-- Global Toast Container -->
     <ToastContainer />
+    
+    <!-- Hackathon Badge -->
+    <HackathonBadge 
+      :variant="$mq.lg ? 'text' : 'badge'" 
+      position="bottom-right"
+    />
   </div>
 </template>

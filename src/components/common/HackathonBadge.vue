@@ -4,11 +4,13 @@ import { computed } from 'vue'
 interface Props {
   variant?: 'text' | 'badge'
   size?: 'sm' | 'md' | 'lg'
+  position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  variant: 'text',
-  size: 'md'
+  variant: 'badge',
+  size: 'md',
+  position: 'bottom-right'
 })
 
 const badgeClasses = computed(() => {
@@ -32,26 +34,39 @@ const badgeClasses = computed(() => {
   ].join(' ')
 })
 
-const boltIcon = computed(() => {
-  // Simple bolt/lightning icon as SVG
-  return `
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-      <path d="M13 2L3 14h6l-2 8 10-12h-6l2-8z"/>
-    </svg>
-  `
+const positionClasses = computed(() => {
+  const classes = {
+    'bottom-right': 'fixed bottom-4 right-4 z-50',
+    'bottom-left': 'fixed bottom-4 left-4 z-50',
+    'top-right': 'fixed top-4 right-4 z-50',
+    'top-left': 'fixed top-4 left-4 z-50'
+  }
+  
+  return classes[props.position]
 })
 </script>
 
 <template>
-  <a
-    href="https://github.com/kickiniteasy/bolt-hackathon-badge"
-    target="_blank"
-    rel="noopener noreferrer"
-    :class="badgeClasses"
-    title="Built with Bolt - Hackathon Entry"
-  >
-    <span v-html="boltIcon" class="flex-shrink-0" />
-    <span v-if="variant === 'text'">Built with Bolt</span>
-    <span v-else>Bolt</span>
-  </a>
+  <div :class="positionClasses">
+    <a
+      href="https://github.com/kickiniteasy/bolt-hackathon-badge"
+      target="_blank"
+      rel="noopener noreferrer"
+      :class="badgeClasses"
+      title="Built with Bolt - Hackathon Entry"
+    >
+      <img 
+        v-if="variant === 'badge'"
+        src="/black_circle_360x360.svg" 
+        alt="Bolt Badge" 
+        class="h-8 w-8"
+      />
+      <img 
+        v-else
+        src="/logotext_poweredby_360w.svg" 
+        alt="Powered by Bolt" 
+        class="h-6"
+      />
+    </a>
+  </div>
 </template>
