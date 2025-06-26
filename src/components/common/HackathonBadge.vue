@@ -2,7 +2,6 @@
 import { computed } from 'vue'
 
 interface Props {
-  variant?: 'text' | 'badge'
   size?: 'sm' | 'md' | 'lg'
   position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
 }
@@ -58,16 +57,9 @@ const positionClasses = computed(() => {
       class="badge-link"
     >
       <img 
-        v-if="variant === 'badge'"
         src="/black_circle_360x360.svg" 
         alt="Bolt Badge" 
         class="h-8 w-8"
-      />
-      <img 
-        v-else
-        src="/logotext_poweredby_360w.svg" 
-        alt="Powered by Bolt" 
-        class="h-6"
       />
     </a>
   </div>
