@@ -40,10 +40,10 @@ onMounted(async () => {
     <!-- Global Toast Container -->
     <ToastContainer />
     
-    <!-- Hackathon Badge -->
+    <!-- Hackathon Badge - Top Right on Desktop, Bottom Right on Mobile -->
     <HackathonBadge 
-      :variant="$mq.lg ? 'text' : 'badge'" 
-      position="bottom-right"
+      variant="badge" 
+      position="top-right"
     />
   </div>
 </template>

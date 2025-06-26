@@ -10,7 +10,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   variant: 'badge',
   size: 'md',
-  position: 'bottom-right'
+  position: 'top-right'
 })
 
 const badgeClasses = computed(() => {
@@ -74,7 +74,7 @@ const positionClasses = computed(() => {
 <style scoped>
 .folded-corner-container {
   position: fixed;
-  bottom: 0;
+  top: 0;
   right: 0;
   overflow: visible;
   width: 200px;
@@ -84,34 +84,34 @@ const positionClasses = computed(() => {
 
 .folded-corner {
   position: absolute;
-  bottom: 0;
+  top: 0;
   right: 0;
   width: 0;
   height: 0;
   border-style: solid;
-  border-width: 0 0 200px 200px;
-  border-color: transparent transparent rgba(0, 0, 0, 0.85) transparent;
-  transform-origin: bottom right;
+  border-width: 200px 200px 0 0;
+  border-color: rgba(0, 0, 0, 0.85) transparent transparent transparent;
+  transform-origin: top right;
   transition: all 0.3s ease;
   z-index: 9998;
-  filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.2));
-  border-radius: 0 0 0 3px;
+  filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.2));
+  border-radius: 0 3px 0 0;
 }
 
 .inner-shadow {
   position: absolute;
-  bottom: -200px;
+  top: -200px;
   right: -200px;
   width: 200px;
   height: 200px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
-  transform: rotate(45deg);
+  background: linear-gradient(225deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+  transform: rotate(-45deg);
   z-index: 9999;
 }
 
 .badge-link {
   position: absolute;
-  bottom: 40px;
+  top: 40px;
   right: 40px;
   z-index: 10000;
   pointer-events: auto;
@@ -120,37 +120,47 @@ const positionClasses = computed(() => {
 .badge-image {
   width: 80px;
   height: 80px;
-  transform: translate(10px, 10px);
+  transform: translate(-10px, 10px);
   transition: transform 0.3s ease-in-out;
 }
 
 .folded-corner-container:hover .folded-corner {
-  border-width: 0 0 210px 210px;
+  border-width: 210px 210px 0 0;
 }
 
 .folded-corner-container:hover .badge-image {
-  transform: translate(5px, 5px) scale(1.05);
+  transform: translate(-15px, 5px) scale(1.05);
 }
 
-/* Responsive adjustments */
+/* Mobile: Keep it at bottom right */
 @media (max-width: 768px) {
   .folded-corner-container {
+    top: auto;
+    bottom: 0;
     width: 150px;
     height: 150px;
   }
   
   .folded-corner {
+    top: auto;
+    bottom: 0;
     border-width: 0 0 150px 150px;
+    border-color: transparent transparent rgba(0, 0, 0, 0.85) transparent;
+    border-radius: 0 0 0 3px;
   }
   
   .inner-shadow {
+    top: auto;
     bottom: -150px;
     right: -150px;
     width: 150px;
     height: 150px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+    transform: rotate(45deg);
   }
   
   .badge-link {
+    top: auto;
     bottom: 30px;
     right: 30px;
   }
@@ -158,10 +168,15 @@ const positionClasses = computed(() => {
   .badge-image {
     width: 60px;
     height: 60px;
+    transform: translate(10px, -10px);
   }
   
   .folded-corner-container:hover .folded-corner {
     border-width: 0 0 160px 160px;
+  }
+  
+  .folded-corner-container:hover .badge-image {
+    transform: translate(5px, -15px) scale(1.05);
   }
 }
 </style>
