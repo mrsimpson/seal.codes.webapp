@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import GradientText from '../common/GradientText.vue'
 
 const { t } = useI18n()
 </script>
