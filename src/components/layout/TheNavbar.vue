@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import LanguageSwitcher from '../common/LanguageSwitcher.vue'
+import HackathonBadge from '../common/HackathonBadge.vue'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -57,11 +58,17 @@ const navigateTo = (path: string) => {
             {{ t('navigation.verify') }}
           </a>
           
+          <!-- Hackathon Badge - Text variant on desktop -->
+          <HackathonBadge variant="text" size="sm" />
+          
           <LanguageSwitcher />
         </nav>
         
         <!-- Mobile Menu Button -->
-        <div class="md:hidden">
+        <div class="md:hidden flex items-center gap-3">
+          <!-- Hackathon Badge - Badge variant on mobile -->
+          <HackathonBadge variant="badge" size="sm" />
+          
           <button 
             class="text-gray-700 hover:text-primary-500 focus:outline-none" 
             @click="toggleMenu"
