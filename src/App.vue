@@ -20,7 +20,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col">
+  <div class="min-h-screen flex flex-col overflow-x-hidden">
     <TheNavbar />
     
     <main class="flex-grow">
@@ -47,3 +47,22 @@ onMounted(async () => {
     />
   </div>
 </template>
+
+<style>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* Ensure no horizontal overflow on mobile */
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+  position: relative;
+}
+</style>
