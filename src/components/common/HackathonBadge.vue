@@ -57,7 +57,7 @@ const positionClasses = computed(() => {
       class="badge-link"
     >
       <img 
-        src="/black_circle_360x360.svg" 
+        src="/black_circle_360x360.png" 
         alt="Bolt Badge" 
         class="h-8 w-8"
       />
