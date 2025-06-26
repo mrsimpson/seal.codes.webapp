@@ -36,10 +36,10 @@ const badgeClasses = computed(() => {
 
 const positionClasses = computed(() => {
   const classes = {
-    'bottom-right': 'fixed bottom-0 right-0 z-50',
-    'bottom-left': 'fixed bottom-0 left-0 z-50',
-    'top-right': 'fixed top-0 right-0 z-50',
-    'top-left': 'fixed top-0 left-0 z-50'
+    'bottom-right': 'fixed bottom-0 right-0 z-[9999]',
+    'bottom-left': 'fixed bottom-0 left-0 z-[9999]',
+    'top-right': 'fixed top-0 right-0 z-[9999]',
+    'top-left': 'fixed top-0 left-0 z-[9999]'
   }
   
   return classes[props.position]
@@ -73,8 +73,10 @@ const positionClasses = computed(() => {
 
 <style scoped>
 .folded-corner-container {
-  position: relative;
-  overflow: hidden;
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  overflow: visible;
   width: 200px;
   height: 200px;
   pointer-events: none;
@@ -91,7 +93,7 @@ const positionClasses = computed(() => {
   border-color: transparent transparent rgba(0, 0, 0, 0.85) transparent;
   transform-origin: bottom right;
   transition: all 0.3s ease;
-  z-index: 50;
+  z-index: 9998;
   filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.2));
   border-radius: 0 0 0 3px;
 }
@@ -104,20 +106,20 @@ const positionClasses = computed(() => {
   height: 200px;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
   transform: rotate(45deg);
-  z-index: 51;
+  z-index: 9999;
 }
 
 .badge-link {
   position: absolute;
   bottom: 40px;
   right: 40px;
-  z-index: 52;
+  z-index: 10000;
   pointer-events: auto;
 }
 
 .badge-image {
-  width: 120px;
-  height: 120px;
+  width: 80px;
+  height: 80px;
   transform: translate(10px, 10px);
   transition: transform 0.3s ease-in-out;
 }
@@ -154,8 +156,8 @@ const positionClasses = computed(() => {
   }
   
   .badge-image {
-    width: 90px;
-    height: 90px;
+    width: 60px;
+    height: 60px;
   }
   
   .folded-corner-container:hover .folded-corner {
