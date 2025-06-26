@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import LanguageSwitcher from '../common/LanguageSwitcher.vue'
-import HackathonBadge from '../common/HackathonBadge.vue'
+import GradientText from '../common/GradientText.vue'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -30,7 +30,9 @@ const navigateTo = (path: string) => {
             class="flex items-center"
             @click.prevent="navigateTo('/')"
           >
-            <span class="text-xl font-bold text-secondary-500">seal.codes</span>
+            <span class="text-xl font-bold">
+              <gradient-text>seal.codes</gradient-text>
+            </span>
           </a>
         </div>
         
@@ -58,17 +60,11 @@ const navigateTo = (path: string) => {
             {{ t('navigation.verify') }}
           </a>
           
-          <!-- Hackathon Badge - Text variant on desktop -->
-          <HackathonBadge variant="text" size="sm" />
-          
           <LanguageSwitcher />
         </nav>
         
         <!-- Mobile Menu Button -->
         <div class="md:hidden flex items-center gap-3">
-          <!-- Hackathon Badge - Badge variant on mobile -->
-          <HackathonBadge variant="badge" size="sm" />
-          
           <button 
             class="text-gray-700 hover:text-primary-500 focus:outline-none" 
             @click="toggleMenu"
@@ -124,7 +120,7 @@ const navigateTo = (path: string) => {
             class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-primary-500 hover:bg-gray-50"
             @click.prevent="navigateTo('/verify')"
           >
-            Verify Document
+            {{ t('navigation.verify') }}
           </a>
           
           <div class="px-3 py-2">
