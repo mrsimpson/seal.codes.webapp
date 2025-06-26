@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 
 interface Props {
+  variant?: 'badge' | 'text'
   size?: 'sm' | 'md' | 'lg'
   position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
 }
@@ -47,7 +48,12 @@ const positionClasses = computed(() => {
 
 <template>
   <div :class="positionClasses" class="folded-corner-container">
-    <div class="folded-corner"></div>
+    <!-- Folded corner effect -->
+    <div class="folded-corner">
+      <div class="inner-shadow"></div>
+    </div>
+    
+    <!-- Badge -->
     <a
       href="https://github.com/kickiniteasy/bolt-hackathon-badge"
       target="_blank"
@@ -59,7 +65,7 @@ const positionClasses = computed(() => {
       <img 
         src="/white_circle_360x360.png" 
         alt="Bolt Badge" 
-        class="h-8 w-8"
+        class="badge-image"
       />
     </a>
   </div>
@@ -69,6 +75,9 @@ const positionClasses = computed(() => {
 .folded-corner-container {
   position: relative;
   overflow: hidden;
+  width: 200px;
+  height: 200px;
+  pointer-events: none;
 }
 
 .folded-corner {
@@ -78,34 +87,79 @@ const positionClasses = computed(() => {
   width: 0;
   height: 0;
   border-style: solid;
-  border-width: 0 0 80px 80px;
-  border-color: transparent transparent #000 transparent;
-  box-shadow: -2px 2px 5px rgba(0, 0, 0, 0.3);
+  border-width: 0 0 200px 200px;
+  border-color: transparent transparent rgba(0, 0, 0, 0.85) transparent;
   transform-origin: bottom right;
-  transform: rotate(0deg);
   transition: all 0.3s ease;
-  z-index: -1;
+  z-index: 50;
+  filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.2));
+  border-radius: 0 0 0 3px;
 }
 
-.folded-corner::before {
-  content: '';
+.inner-shadow {
   position: absolute;
-  bottom: -80px;
-  right: -80px;
-  width: 20px;
-  height: 20px;
-  background: rgba(255, 255, 255, 0.1);
+  bottom: -200px;
+  right: -200px;
+  width: 200px;
+  height: 200px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
   transform: rotate(45deg);
-  z-index: 1;
+  z-index: 51;
 }
 
 .badge-link {
-  position: relative;
-  margin: 20px;
-  z-index: 2;
+  position: absolute;
+  bottom: 40px;
+  right: 40px;
+  z-index: 52;
+  pointer-events: auto;
+}
+
+.badge-image {
+  width: 120px;
+  height: 120px;
+  transform: translate(10px, 10px);
+  transition: transform 0.3s ease-in-out;
 }
 
 .folded-corner-container:hover .folded-corner {
-  transform: scale(1.05);
+  border-width: 0 0 210px 210px;
+}
+
+.folded-corner-container:hover .badge-image {
+  transform: translate(5px, 5px) scale(1.05);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .folded-corner-container {
+    width: 150px;
+    height: 150px;
+  }
+  
+  .folded-corner {
+    border-width: 0 0 150px 150px;
+  }
+  
+  .inner-shadow {
+    bottom: -150px;
+    right: -150px;
+    width: 150px;
+    height: 150px;
+  }
+  
+  .badge-link {
+    bottom: 30px;
+    right: 30px;
+  }
+  
+  .badge-image {
+    width: 90px;
+    height: 90px;
+  }
+  
+  .folded-corner-container:hover .folded-corner {
+    border-width: 0 0 160px 160px;
+  }
 }
 </style>
